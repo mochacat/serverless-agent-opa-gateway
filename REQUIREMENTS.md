@@ -13,7 +13,9 @@ Prompt engineering and system prompts **cannot** guarantee 100% deterministic gu
 This gate is an **agent gateway**: a dedicated service that sits between agents and their tools and makes a deterministic allow/deny decision per tool call, **before** anything executes. It is **state-aware** — the decision considers real-time context about the current workload (is the target isolated? is this a fresh human-approved change window? is the caller within its rate limit? is the resource leased?) — not just a static per-user permission table.
 
 ### Market context (justifies the architecture)
-- AWS now ships **AgentCore Policy (Cedar)** (GA Mar 2026) + **Bedrock Guardrails** (GA Jun 2026) as native first-party gates. OPA/Rego remains the correct tool for rules Cedar **cannot** express: complex payload inspection, rate-based/deny-window access, change-ticket cross-referencing. **This is the gap this project fills**, as a request-interceptor layer.
+- AWS now ships **AgentCore Gateway** (GA, unified managed gateway: routing, MCP translation, OAuth/Security Guard, ingress+egress auth, credential exchange, observability) + **Bedrock Guardrails** (GA Jun 2026, LLM input/output content moderation, PII redaction). Both are native first-party layers.
+- **Neither evaluates OPA/Rego.** AgentCore's authorization control is OAuth/Security Guard (Cedar/declarative role rules); Bedrock Guardrails does content moderation, not policy evaluation. OPA/Rego remains the correct tool for the rules those platforms **cannot** express: **complex payload/argument inspection (B), rate/deny-window + session-trajectory cross-referencing (D/E), and change-ticket/approval cross-referencing (F)**. **This is the gap this project fills** — the portable OPA policy-evaluation layer on the tool-dispatch path.
+- **Positioning: complementary, not competitive.** We do not try to out-feature the managed gateways. We own the OPA-only controls they lack, and are designed to sit alongside them (AgentCore for routing/auth, Bedrock Guardrails for input/output moderation) as a defense-in-depth layer. A client can use this gateway *with* either platform — the Rego contract is portable and vendor-agnostic.
 - OPA is **CNCF-graduated** and shipped v1.20/v1.21 — mature, with a compiler that emits portable WebAssembly.
 - **Deployment reality:** most early/mid-stage AI teams are on **LangChain / MCP / Python on Lambda**, not necessarily Bedrock. The gateway must be **runtime-agnostic** so it demos and deploys regardless of whether the client is LangChain, MCP, or AgentCore.
 
@@ -64,6 +66,8 @@ Chosen over a long-running service (Go/Python daemon on Fargate/ECS). Rationale 
 - **Cost scales with activity** — the billing curve tracks the business curve, ideal pre-revenue.
 
 **The long-running service remains a documented scale path** (same codebase, different wrapper) for the future state of *sustained very-high throughput* where cold-start/per-invocation overhead would dominate a sub-ms p99 — but it is **not** the default demo.
+
+> **Distinct from a future LLM proxy (documented, not built here):** this gateway **does not proxy the model request** — the model call goes directly from agent to provider. A *separate* long-running LLM-proxy service (Fargate/ECS, not Lambda) that does content moderation on the model path (Presidio/llm-guard) is planned future work for a **different, throughput-hungry customer segment** and belongs **behind a conventional API gateway**. See DESIGN.md §3.3a. It is not a feature of this serverless gateway.
 
 ### 3.1.2 Deployment model: reusable module + runnable env + offline demo
 Infrastructure is a **reusable OpenTofu/Terraform module** (the "reusable platform component, not a one-off script" signal) **plus** a runnable root config that instantiates it — the pattern professional platform teams use.

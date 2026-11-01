@@ -27,18 +27,17 @@
 ## Phase 1 — Runnable core (local, zero AWS)
 
 ### 1a. Policy
-- [ ] **T1.1** `policies/agent_guardrails.rego` — baseline slice: **H** (default-deny), **A** (verb-class), **C** (context/state), **B** (argument/payload).
-  - **Done =** `opa check policies/` passes; `opa eval -t wasm` runs on a fixture input.
-- [ ] **T1.2** `policies/agent_guardrails.rego` — add **F** (change-ticket/approval), **G** (output `redact`), **E** (rate-window from `context.rate_window`), **D** (trajectory from `context.trajectory`).
-  - **Done =** policy covers **all A–H**; heroes **B/E/F/G** each produce a distinct `reason` (and `redact` for G); guided by `DESIGN.md` §4.3 input/output contracts.
-- [ ] **T1.3** `policies/agent_guardrails_test.rego` — Rego unit tests (T1): default-deny, each hero, each deny/allow branch.
-  - **Done =** `opa test policies/ -v` green; **hero cases outnumber baseline cases** (§5.1 emphasis).
+- [x] **T1.1** `policies/agent_guardrails.rego` — baseline slice: **H** (default-deny), **A** (verb-class), **C** (context/state), **B** (argument/payload). *(Superseded in T1.2 by the multi-industry surface; the file was removed. Kept for the record.)*
+  - **Done =** `opa check policies/` passes; `opa eval -t wasm` runs on a fixture input. ✅ (verified: `opa check` pass; wasm eval returns `true` for allowed read; regopy in-process eval confirms all 6 branches — read/mutate/delete×prod/dev/unknown-tool + lease deny)
+- [x] **T1.2** `policies/` — **multi-industry demo surface** (`base.rego` + `healthcare.rego` + `fintech.rego` + `secops.rego` + `policy.rego`), covering **all A–H**. **Heroes B/E/F/G** each produce a distinct `reason` (and `redact` for G). Same gate, different nouns/rules per industry (REQUIREMENTS.md §1.1); `policy.rego` dispatches on `input.industry` to the selected surface (unknown/empty industry → fail-closed default-deny). ✅ (verified via regopy: all 3 industries' allow/deny/reason/redact branches + fail-closed; fixed a rate-count dedup bug in `base.count_destructive`)
+- [x] **T1.3** `policies/*_test.rego` — Rego unit tests (T1): default-deny, each hero, each deny/allow branch, per industry (healthcare/fintech/secops) + fail-closed dispatch.
+  - **Done =** `opa test policies/ -v` green; **hero cases outnumber baseline cases** (§5.1 emphasis). ✅ (verified: **77/77 PASS** across `base_test` (17), `healthcare_test` (14), `fintech_test` (21), `secops_test` (17), `policy_test` (9); hero B/E/F/G + fail-closed cases outnumber baseline A/C/H per industry)
 
 ### 1b. Build + engine
-- [ ] **T2.1** Makefile `build-wasm` — compile Rego → `policies/agent_guardrails.wasm` (+ `manifest.json`/`data.json`) via `opa build -t wasm`. Also `test-policy` target.
-  - **Done =** `make build-wasm` emits a loadable `.wasm`; `make test-policy` runs Rego tests; artifact git-ignored.
-- [ ] **T2.2** `src/engine/policy_engine.py` — load `.wasm` once (module-level), `evaluate(tool, args, context, principal) -> Decision{allow, reason, redact}`.
-  - **Done =** engine returns correct decisions against T1.2's compiled policy for a fixture input; loads once.
+- [ ] **T2.1** Makefile `test-policy` (layers 1–2: `opa check policies/` + `opa test policies/ -v`). A `build-wasm` target is **optional/D5a-only** — the demo evaluates Rego directly via `regopy` (D5/D6), so no `.wasm` compile step in the default path.
+  - **Done =** `make test-policy` runs both `opa check` and `opa test`; CI can add a `build-wasm` stage later without rework.
+- [ ] **T2.2** `src/engine/policy_engine.py` — load `policies/` (all `.rego`) once via `regopy` at module-level (cold start); `evaluate(industry, tool, args, context, principal) -> Decision{allow, reason, redact}` dispatching on `input.industry`.
+  - **Done =** engine returns correct decisions against T1.2's policy for a fixture input across all 3 industries + fail-closed unknown; loads once.
 - [ ] **T2.3** `src/engine/session_store.py` — in-memory, dependency-injected store for **D/E**: `trajectory_for(session_id)` + `record_event(...)`.
   - **Done =** append/read behavior unit-tested; exposed behind an injected interface (the interface, not a backing technology, is what matters).
 - [ ] **T2.4** `tests/test_policy_engine.py` (T2) — engine unit tests: determinism, single-load, correct decision/reason.

@@ -1,0 +1,55 @@
+# Policy validation — gates on the actual `policies/` in this repo.
+#
+# Runs the three policy-testing layers (see policies/README.md) against the
+# real Rego on every push + PR. The build FAILS if any policy is broken,
+# any Rego test fails, or the deployed eval path (regopy) cannot load/evaluate.
+#
+# Layer 1: `opa check policies/`  — syntax/style valid
+# Layer 2: `opa test policies/`   — semantic correctness (T1)
+# Layer 3: regopy in-process smoke — the same engine Lambda embeds loads + evals
+#
+# OPA is pinned to the same major.minor as the local mise toolchain (1.20.x)
+# so "CI green == local green". No .wasm compile step: the demo evaluates Rego
+# directly via regopy (D5/D6); a build-wasm stage is D5a-only.
+name: policy-validation
+
+on:
+  push:
+    paths:
+      - "policies/**"
+  pull_request:
+    paths:
+      - "policies/**"
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    name: Validate OPA policies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Layer 1 — static check.
+      - name: Install pinned OPA CLI
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.20.2
+
+      - name: Static check (opa check)
+        run: opa check policies/
+
+      # Layer 2 — Rego unit tests.
+      - name: Rego unit tests (opa test)
+        run: opa test policies/ -v
+
+      # Layer 3 — in-process load smoke via regopy (the Lambda eval path).
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install regopy
+        run: pip install regopy==1.5.2
+
+      - name: In-process load smoke (regopy)
+        run: python scripts/policy_smoke.py policies/

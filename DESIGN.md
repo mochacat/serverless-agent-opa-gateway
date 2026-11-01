@@ -36,7 +36,8 @@ This is a **deliverable for early- and mid-stage AI companies adopting serverles
 - Comprehensive **unit + integration testing** and a **functional CI/CD pipeline** (`TASKS.md` breakdown) that gate merges.
 
 ### 2.2 Non-Goals
-- **Not an LLM-request interceptor.** We do not filter/adjudicate the prompt stream (LLM-input filtering is a complementary outer layer, e.g. Bedrock Guardrails — documented, not built).
+- **Not an LLM-request interceptor.** We do not filter/adjudicate the prompt stream or the model response (LLM-content filtering is a complementary layer — Bedrock Guardrails, or a future long-running LLM-proxy service using Presidio/llm-guard, §3.3a — documented, not built here). The model call is not proxied by this gateway.
+- **Not a reimplementation of a managed agent gateway.** We do not rebuild routing, MCP translation, OAuth/credential exchange, or model routing — AgentCore Gateway and Bedrock Guardrails do that. We are the **complementary OPA policy-evaluation layer** on the tool-dispatch path: the controls those platforms cannot express (payload/argument inspection B, rate/deny-window + trajectory D/E, change-ticket cross-referencing F, output redaction G). Designed to sit *alongside* either platform, not replace it. The Rego contract is portable and vendor-agnostic (N4).
 - **Not a full compliance program.** We build the *deterministic access-control and audit layer* that supports HIPAA/SOC2/ISO posture; we do not certify/handle BAA, data-residency, retention-as-a-program, or IR.
 - **No fragile ephemeral-sandbox / RFC-8693 token-minting service in v1.** These are documented as future paths (O2); the demo is self-contained.
 - **No mandatory OTel/observability dependency.** OTel is a swappable adapter seam behind an injected sink (5.4); it is never a runtime requirement for the demo.
@@ -60,6 +61,21 @@ We chose **API Gateway → Lambda** over a long-running service, because of **co
 - Burst fan-out scales without capacity planning.
 - MCP 2026-07-28 is **stateless** → matches Lambda's per-invocation stateless model.
 - Long-running service remains a *documented scale path* for sustained very-high throughput.
+
+### 3.3a Future product: a long-running LLM proxy (separate scope, not built here)
+
+**This gateway deliberately does NOT proxy the model request.** It sits only on the **tool-dispatch path** (authorize the action, redact tool output before it reaches the model). The model call travels directly from the agent to its provider (Bedrock, OpenAI, vLLM, …) and is never intercepted here. That is a scoped decision, not an omission — see below.
+
+**Why the model path is out of scope for this project:**
+- **Streaming is the wrong shape for Lambda.** LLM responses stream tokens, and API Gateway HTTP + Lambda does not cleanly proxy a live token stream (payload limits, connection termination, buffering). A model-path proxy is a poor serverless fit — the thing that becomes the bottleneck and fights the platform.
+- **Different customer.** Early/mid-stage autonomous-agent teams on API Gateway want cheap, self-hosted, vendor-agnostic *tool authorization*. A full LLM proxy (content moderation in both directions, model routing, multi-provider redaction) serves a heavier, throughput-hungry segment that usually sits behind a real API gateway and a long-running service.
+
+**Planned future work (documented, not built in this repo):** a **long-running LLM proxy service** — on Fargate/ECS (or similar), *not* Lambda — that:
+- Proxies the model call (OpenAI-compatible protocol; Bedrock adapter), running **in-process content moderation**: `Microsoft Presidio` (PII/PHI redaction on request and response) + an injection shield such as `llm-guard`.
+- Composes with this OPA tool gate: the two layers are independent and complementary (this repo = tool path; the future service = model path), sharing the same agent-gateway mental model and vendor-agnostic stance.
+- Is recommended **in front of a conventional API gateway** for that customer segment (routing, auth, rate limiting at the edge; the proxy owns content policy).
+
+This is explicitly a **separate product for a different customer**, tracked as future work — not a feature to bolt onto the serverless gateway.
 
 ### 3.4 Latency honesty
 `<1ms` = **engine eval only**. End-to-end warm path ~5–15ms. In agent workflows the dominant cost is the LLM round-trip (300ms–3s+), so this is ~1–5% overhead — acceptable for autonomous multi-agent. Migrate to a service only under *sustained very-high throughput + strict single-digit-ms* requirement.
@@ -113,6 +129,8 @@ Tool dispatch gated         Destructive action blocked . per-call audit trail
 | **Metric sink** | (interface) | Injected; OTel-swallwing in local, real OTLP optional |
 
 ### 4.3 The policy (Rego) — capability surface
+
+> **Why OPA here (positioning):** the managed gateways (AgentCore Gateway, Bedrock Guardrails) do routing, auth, and content moderation — but none evaluate Rego. B/E/F/D require cross-referencing *arguments, session trajectory, rate windows, and external approval state* — exactly what a declarative policy engine expresses. The Rego source is the portable, versioned contract (N4), evaluated in-process via `regopy`, and designed to complement, not replace, the managed platforms.
 
 All A–H built. **Hero: B, E, F, G.** Baseline: A, C, H. D needs session store.
 
@@ -245,7 +263,8 @@ HTTP request → gateway server → schema-validate → identity enrich
 | D1 | Deployment model | **API Gateway → Lambda** (serverless) | Long-running service rejected for cost + spiky multi-agent + stateless-MCP (see §3.3); documented scale path. |
 | D2 | Enforcement location | **In-process OPA engine (`regopy`)** | OPA sidecar/server rejected: **a sidecar does not exist in Lambda** (one process per invocation). The only alternative is a second HTTP OPA service → latency + second cold start + second billing. In-process wins on latency/cost/determinism for serverless (D2a). |
 | D2a | In-process vs sidecar (Lambda) | **In-process** | A sidecar-style shared OPA *service* (hot-reloadable, centralized policy) is only right for the long-running-service scale path (§3.3) — and the same Rego is portable to it (N4). |
-| D3 | Interception point | **Gate tool dispatch** | LLM-request interception rejected (can't stop destructive effects, provider-coupled). Complementary layer is Bedrock Guardrails (documented). |
+| D3 | Interception point | **Gate tool dispatch** | LLM-request interception rejected for the *serverless gateway* (can't stop destructive effects, provider-coupled, streaming is a poor Lambda fit). Complementary content layer is Bedrock Guardrails (documented). |
+| D3a | Model-path proxy | **Out of scope for the serverless gateway; separate long-running service (§3.3a)** | The model request/response is NOT proxied here. A future long-running LLM proxy (Fargate/ECS + Presidio/llm-guard, fronted by a conventional API gateway) owns the content layer for a different, throughput-hungry customer segment. Not built in this repo. |
 | D4 | Portability | **Rego source is the portable contract** | Evaluated with identical semantics by `regopy` (Python), the `opa` CLI, or an OPA server in any runtime. A literal `.wasm` artifact is an *optional* alternative (D5a), not the demo's mechanism. |
 | D5 | `regopy` (embedded Rego engine) | Accepted (N3/N4) | In-process, sub-ms, no network. Verified working on Python 3.14. The invented `python-opa` package does **not** exist on PyPI — rejected. |
 | D5a | Optional `.wasm` artifact | Documented alternative, not the demo | If a literal `.wasm` artifact is required, options are `regopy` bundle entrypoint or raw `wasmtime` against OPA's Wasm ABI — more glue, deferred until a real requirement exists. |
