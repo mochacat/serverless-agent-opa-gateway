@@ -1,0 +1,32 @@
+[project]
+name = "agentic-opa-guardrails"
+version = "0.1.0"
+description = "Serverless deterministic authorization gate for AI-agent tool execution (OPA Rego in-process on Lambda)."
+requires-python = ">=3.12"
+dependencies = [
+    "boto3",
+    "regopy",
+    "requests",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+# Test tiers T2-T6 run with zero AWS (injected fakes). See REQUIREMENTS.md §5.1.
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/__init__.py"]
+
+[tool.coverage.report]
+# T6 coverage gate: the engine/gateway/handler must stay ≥ 80% covered.
+fail_under = 80
+show_missing = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # line length handled by the formatter

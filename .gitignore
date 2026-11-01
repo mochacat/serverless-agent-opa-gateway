@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build / Lambda packages
+*.zip
+dist/
+build/
+
+# Terraform / OpenTofu local state (keep remote state; never commit local state/secrets)
+infra/**/.terraform/
+infra/**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+*.tfvars
+!infra/envs/dev/*.tfvars.example
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key

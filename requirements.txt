@@ -1,0 +1,10 @@
+# Runtime dependencies for the agent gateway.
+#
+# Policy is evaluated IN-PROCESS via `regopy` (the embedded OPA Rego engine) —
+# no OPA server/sidecar, no network hop (DESIGN.md D2/D2a/D5).
+#
+# Tests do NOT require AWS credentials: boto3 is used ONLY by the deployed
+# Lambda's audit sink, and is replaced by an injected fake in every test tier.
+boto3==1.40.0
+regopy==1.5.2
+requests==2.34.2
