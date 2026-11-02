@@ -3,7 +3,7 @@
 Guidance for working in this repository. Supersedes any generic assumptions; when in doubt, `REQUIREMENTS.md` and `DESIGN.md` are the source of truth — update them when behavior or decisions change.
 
 ## What this project is
-A **serverless agent gateway** on **API Gateway HTTP → Lambda** that enforces deterministic authorization on AI-agent **tool dispatch**. It evaluates **Open Policy Agent (OPA) policies compiled to WebAssembly** in-process, before a tool action executes. Target: early- and mid-stage companies adopting AI on serverless.
+A **serverless agent gateway** on **API Gateway HTTP → Lambda** that enforces deterministic authorization on AI-agent **tool dispatch**. It evaluates **Open Policy Agent (OPA) Rego policies** in-process via the embedded `regopy` interpreter, before a tool action executes. Target: early- and mid-stage companies adopting AI on serverless.
 
 Do not describe this as a "portfolio" or "consulting showcase" — it is a client deliverable.
 

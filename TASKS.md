@@ -28,7 +28,7 @@
 
 ### 1a. Policy
 - [x] **T1.1** `policies/agent_guardrails.rego` — baseline slice: **H** (default-deny), **A** (verb-class), **C** (context/state), **B** (argument/payload). *(Superseded in T1.2 by the multi-industry surface; the file was removed. Kept for the record.)*
-  - **Done =** `opa check policies/` passes; `opa eval -t wasm` runs on a fixture input. ✅ (verified: `opa check` pass; wasm eval returns `true` for allowed read; regopy in-process eval confirms all 6 branches — read/mutate/delete×prod/dev/unknown-tool + lease deny)
+  - **Done =** `opa check policies/` passes; `opa eval` runs on a fixture input. ✅ (verified: `opa check` pass; regopy in-process eval confirms all 6 branches — read/mutate/delete×prod/dev/unknown-tool + lease deny)
 - [x] **T1.2** `policies/` — **multi-industry demo surface** (`base.rego` + `healthcare.rego` + `fintech.rego` + `secops.rego` + `policy.rego`), covering **all A–H**. **Heroes B/E/F/G** each produce a distinct `reason` (and `redact` for G). Same gate, different nouns/rules per industry (REQUIREMENTS.md §1.1); `policy.rego` dispatches on `input.industry` to the selected surface (unknown/empty industry → fail-closed default-deny). ✅ (verified via regopy: all 3 industries' allow/deny/reason/redact branches + fail-closed; fixed a rate-count dedup bug in `base.count_destructive`)
 - [x] **T1.3** `policies/*_test.rego` — Rego unit tests (T1): default-deny, each hero, each deny/allow branch, per industry (healthcare/fintech/secops) + fail-closed dispatch.
   - **Done =** `opa test policies/ -v` green; **hero cases outnumber baseline cases** (§5.1 emphasis). ✅ (verified: **77/77 PASS** across `base_test` (17), `healthcare_test` (14), `fintech_test` (21), `secops_test` (17), `policy_test` (9); hero B/E/F/G + fail-closed cases outnumber baseline A/C/H per industry)
@@ -71,15 +71,15 @@
   - **Done =** `tofu validate` on the module passes; inputs/outputs per `DESIGN.md` §4.7.
 - [ ] **T6.2** `infra/envs/dev/` — runnable root config instantiating the module → `tofu apply`.
   - **Done =** `tofu fmt -check` + `tofu validate` pass; plan is apply-able (CI uses validate only; real apply is the manual deploy step).
-- [ ] **T6.3** Makefile — `build-zip` (Lambda package incl. compiled `.wasm` + code), `deploy`/`tofu apply` helper.
+- [ ] **T6.3** Makefile — `build-zip` (Lambda package incl. `policies/*.rego` + code), `deploy`/`tofu apply` helper.
   - **Done =** `make build-zip` produces a deployable artifact; deploy path documented (`docs/deployment.md`).
 
 ---
 
 ## Phase 3 — CI/CD (functional)
 
-- [ ] **T7.1** `.github/workflows/ci.yml` — stages: `opa check` → `opa test` → `make build-wasm` → `ruff format --check`/`ruff check` → `pytest` + coverage gate → `tofu fmt -check` + `tofu validate`. Triggers: push + PR.
-  - **Done =** workflow runs all stages and **fails on any broken policy/test/wasm/unformatted code**; deploy job manual via `workflow_dispatch`.
+- [ ] **T7.1** `.github/workflows/ci.yml` — stages: `opa check` → `opa test` → `ruff format --check`/`ruff check` → `pytest` + coverage gate → `tofu fmt -check` + `tofu validate`. Triggers: push + PR. (A `make build-wasm` stage is optional/D5a-only — not in the default pipeline.)
+  - **Done =** workflow runs all stages and **fails on any broken policy/test/unformatted code**; deploy job manual via `workflow_dispatch`.
 
 ---
 
@@ -98,4 +98,4 @@
 ---
 
 ## Definition of Done (whole project)
-> A fresh clone reproduces: Rego tests green (T1), `make build-wasm` works, all pytest tiers green incl. coverage gate (T2–T6), local gateway demo serves decisions with zero AWS (N6), OpenTofu module validates/plans (N7), CI green on push/PR, and README quickstart runs end-to-end in ~10 seconds.
+> A fresh clone reproduces: Rego tests green (T1), all pytest tiers green incl. coverage gate (T2–T6), local gateway demo serves decisions with zero AWS (N6), OpenTofu module validates/plans (N7), CI green on push/PR, and README quickstart runs end-to-end in ~10 seconds.

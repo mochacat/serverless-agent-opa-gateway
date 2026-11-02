@@ -10,14 +10,14 @@
 | Date | 2026 (current date) |
 | Supersedes | README.md's informal design sketch |
 | Companion docs | `REQUIREMENTS.md` (this design's requirements source), `TASKS.md` (breakdown) |
-| Versioning | Rego policy is git-versioned; `.wasm` is a build artifact |
+| Versioning | Rego policy is git-versioned; no build artifact (loaded directly via `regopy`) |
 | Primary deliverable | **A runnable, deployable artifact** (N0) |
 
 ---
 
 ## 1. Overview
 
-We design and build a **serverless, deterministic authorization gate for AI-agent tool execution**: an **agent gateway** hosted on **API Gateway HTTP → Lambda** that evaluates **Open Policy Agent (OPA) policies compiled to WebAssembly (`.wasm`)** **in-process** before any tool action executes.
+We design and build a **serverless, deterministic authorization gate for AI-agent tool execution**: an **agent gateway** hosted on **API Gateway HTTP → Lambda** that evaluates **Open Policy Agent (OPA) Rego policies in-process** before any tool action executes. It uses the embedded **`regopy`** Rego interpreter — no OPA server, no sidecar, no `.wasm` build step in the demo.
 
 The gate sits **between the agent orchestration layer (LangChain / MCP / LlamaIndex) and execution targets** (databases, clouds, internal APIs). It is a **tool-dispatch gate** — it authorizes the *action an agent proposes to take*, not the LLM request itself.
 
@@ -30,7 +30,7 @@ This is a **deliverable for early- and mid-stage AI companies adopting serverles
 ### 2.1 Goals
 - **Primary:** A runnable, deployable agent-gateway artifact (local `make` demo + real OpenTofu deploy), with **no AWS account required for the demo** (N6).
 - Demonstrate the **differentiating OPA capabilities (B/E/F/G)** — argument/payload inspection, rate/deny-window, change-ticket approval, output redaction — as the hero, with default-deny as the baseline (N0).
-- **In-process `<1ms` policy evaluation** via OPA compiled to `.wasm` (N3), **language-agnostic artifact** (N4).
+- **In-process `<1ms` policy evaluation** via `regopy` (embedded Rego interpreter), **language-agnostic portable contract** in Rego source (N4).
 - **Deterministic default-deny** (N2) and a **full audit trail** (N5).
 - Reusable **OpenTofu module + runnable env** for repeatable platform deployment (N7).
 - Comprehensive **unit + integration testing** and a **functional CI/CD pipeline** (`TASKS.md` breakdown) that gate merges.
@@ -52,7 +52,7 @@ Prompt engineering cannot guarantee deterministic guardrails against destructive
 
 ### 3.2 Market / ecosystem reality
 - AWS ships **AgentCore Policy (Cedar)** (GA Mar 2026, default-deny) + **Bedrock Guardrails** (GA Jun 2026) as native gates. **OPA/Rego is the correct tool for the rules Cedar cannot express**: complex payload inspection, rate-based/deny-window access, change-ticket cross-referencing. **This is the gap this project fills.**
-- OPA is **CNCF-graduated**, ships portable WebAssembly, and is mature.
+- OPA is **CNCF-graduated**, supports portable WebAssembly as an optional compilation target, and is mature.
 - Most early/mid-stage AI teams run **LangChain / MCP / Python on Lambda**, not necessarily Bedrock → the gateway is **runtime-agnostic**.
 
 ### 3.3 Deployment-model decision (already decided in requirements; recap for context)
@@ -80,11 +80,13 @@ This is explicitly a **separate product for a different customer**, tracked as f
 ### 3.4 Latency honesty
 `<1ms` = **engine eval only**. End-to-end warm path ~5–15ms. In agent workflows the dominant cost is the LLM round-trip (300ms–3s+), so this is ~1–5% overhead — acceptable for autonomous multi-agent. Migrate to a service only under *sustained very-high throughput + strict single-digit-ms* requirement.
 
-### 3.5 "Compiled to Wasm" explained (and why it's a deliberate choice)
-Writing policies in **Rego**, then `opa build -t wasm` produces a **`.wasm` binary + a JSON manifest**. At runtime a Wasm engine (here `wasmtime`) executes that binary in-process — like compiling source to a binary, rather than interpreting it.
+### 3.5 "Compiled to Wasm" explained (optional alternative, not the default)
 
-- **The mainstream OPA default is interpreted Rego** in the Go runtime (`--target rego`, e.g. Kubernetes Gatekeeper, REST authz servers). Compiling to Wasm is the **performance/embedding/portability path**, used when you want **in-process `<1ms` eval**, a **non-Go runtime** (Python here), and a **single portable artifact** across languages (N4) — exactly this project's triad.
-- **Not every OPA feature is available in the Wasm target** (some external/HTTP built-ins are restricted) and inputs must be JSON-serializable. Our rules are pure over JSON `input`, so they stay Wasm-compatible. The README must frame Wasm as a *deliberate* choice (with the interpreted default as the alternative), so the evaluator sees the reasoning, not an accident.
+Writing policies in **Rego**, then `opa build -t wasm` produces a `.wasm` binary + a JSON manifest that a Wasm engine can execute in-process. This project's **demo uses `regopy`** — an embedded Rego interpreter — which loads `.rego` source directly, no compile step needed.
+
+- **The mainstream OPA default** is interpreted Rego (`--target rego`, e.g. Kubernetes Gatekeeper, REST authz servers). Compiling to Wasm is an **alternative performance/embedding/portability path** for non-Go runtimes (Python here). With `regopy`, the in-process eval is already sub-ms, so the `.wasm` compile step adds complexity without benefit for the demo.
+- **Where `.wasm` would be useful:** if the runtime cannot embed `regopy` (e.g. Node.js, Java), or if policy must ship as a single opaque binary rather than source. The Rego source is the portable contract either way — the same rules evaluated by `regopy` (Python), `opa` CLI, or a Wasm engine in another runtime.
+- **Decision recorded (D5a):** `.wasm` is a documented optional alternative, not the demo's mechanism. Not built in v1; the `build-wasm` Make target exists only as scaffolding if that path is exercised later.
 
 ---
 
@@ -103,7 +105,7 @@ Agent (LangChain / MCP / LlamaIndex)          AWS Lambda Control Plane
    │                                             │
    │                                             │  2. validate schema + enrich identity
    │                                             │     (server-side principal; agent has none)
-   │                                             │  3. OPA Wasm eval (in-process) vs
+   │                                             │  3. OPA Rego eval (in-process, `regopy`) vs
    │                                             │     args + context + session trajectory
    │                                             ├──────────────►  [policies/*.rego]
    │                                             │
@@ -120,7 +122,7 @@ Tool dispatch gated         Destructive action blocked . per-call audit trail
 |-----------|------|----------------|
 | **Policy source of truth** | `policies/agent_guardrails.rego` | Rego rules (A–H); git-versioned |
 | **Rego tests** | `policies/agent_guardrails_test.rego` | `opa test` unit tests (T1) |
-| **Engine** | `src/engine/policy_engine.py` | Load `.wasm` once; `evaluate(...) -> Decision` (portable API) |
+| **Engine** | `src/engine/policy_engine.py` | Load Rego via `regopy` once; `evaluate(...) -> Decision` (portable API) |
 | **Gateway app** | `src/gateway/app.py` | JSON-RPC; schema-validate → enrich → eval → respond → audit |
 | **Lambda entrypoint** | `src/handler.py` | Adapt API Gateway event→request→gateway→response |
 | **Interceptor** | `src/agent_interceptor.py` | LangChain `BaseTool` client hook that calls the gateway |
@@ -205,15 +207,15 @@ Per `tools/call`:
 
 ```
 HTTP request → gateway server → schema-validate → identity enrich
-             → REAL in-process OPA Wasm eval → allow/deny (+ redact)
+             → REAL in-process OPA Rego eval (`regopy`) → allow/deny (+ redact)
              → audit record → JSON-RPC response
 ```
 
-- `make build-wasm` → compiles Rego → `.wasm`.
+- Rego loaded directly via `regopy` at module import — no compile step.
 - `make run-gateway` → stdlib `http.server` (O4 resolution: **stdlib, zero extra deps**) serving the JSON-RPC endpoint.
 - `make test-policy` → `opa test`; `make test-integration` → pytest (T2–T6).
 - In-memory session store + injected fake audit/metric sinks → **zero AWS credentials** runnable.
-- **Only cloud *services* are substituted** (audit sink → fake/stdout instead of CloudWatch; no API Gateway/Lambda plumbing). The **gateway logic and Wasm policy eval are the real thing** — the same code that deploys.
+- **Only cloud *services* are substituted** (audit sink → fake/stdout instead of CloudWatch; no API Gateway/Lambda plumbing). The **gateway logic and real Rego policy eval (`regopy`) are the real thing** — the same code that deploys.
 - **Interacting locally:** `curl` the running server with a `tools/call` payload, or point the LangChain interceptor at `http://localhost:<port>`.
 - **Not required locally:** LocalStack/Docker (rejected, D8) — cloud plumbing is covered by the mocked API Gateway event contract (T5) and the optional post-`apply` smoke test.
 
@@ -226,7 +228,7 @@ HTTP request → gateway server → schema-validate → identity enrich
   - Variables: `agent_name`, `environment`, `region`, `retention_days`, `memory_size`, etc.
   - Outputs: `gateway_url`, `lambda_arn`, `audit_log_group`.
 - **Runnable root config** `infra/envs/dev/` → `tofu apply`.
-- **O3 (wasm commit-vs-build):** `.wasm` is **CI/Makefile-built and git-ignored**; the Lambda package builds the zip from Rego at deploy (reproducible).
+- **Rego is loaded from source** directly via `regopy` — no build artifact; the Lambda package includes `policies/*.rego` directly.
 
 ### 4.8 Testing & CI (from REQUIREMENTS §5.1/5.2)
 
@@ -239,7 +241,7 @@ HTTP request → gateway server → schema-validate → identity enrich
 | T5 | Lambda handler (API GW events) | pytest |
 | T6 | Coverage ≥80% | pytest-cov |
 
-**CI (`.github/workflows/ci.yml`)**: `opa check` → `opa test` → `make build-wasm` → `ruff format/check` → pytest+cov → `tofu fmt -check` + `tofu validate`. Runs on push + PR. Deploy job is a manual `workflow_dispatch` and gated. **Portability gate:** tests run against the exact `.wasm` CI built (no drift between tested & deployed policy).
+**CI (`.github/workflows/ci.yml`)**: `opa check` → `opa test` → `ruff format/check` → pytest+cov → `tofu fmt -check` + `tofu validate`. Runs on push + PR. Deploy job is a manual `workflow_dispatch` and gated. **Portability gate:** tests run against the same Rego source loaded at runtime — no build artifact, no drift.
 
 > **No live Lambda is needed for tests.** The test tiers run **locally with zero AWS** (N6). `handler.py` is a thin adapter mapping an **API Gateway event dict → gateway app → response dict**; tests feed it a faithful **mock event** (identical to API Gateway's contract) and assert the response, using the same injected fakes (audit, metrics, session store) as all other tiers. The *real* Lambda is what the OpenTofu module deploys; an optional **deployment smoke test** after `tofu apply` hits the live `gateway_url` with safe/unsafe payloads — that's a manual/CI-deploy step documented in `docs/deployment.md`, separate from the local test tiers.
 
@@ -282,7 +284,7 @@ HTTP request → gateway server → schema-validate → identity enrich
 
 - **O1** — Exact JSON-RPC request/response schema (method, params, error shape). *Proposed default*: method `tools/call`, params `{tool, args, context}`, response `{result:{allow, reason, redact?}}` or JSON-RPC error with `data.reason`.
 - **O2** — How much of sandbox/scoped-token to document vs. build. *Resolution*: document only (D10), but make the "no agent credentials" property real via identity enrichment.
-- **O3** — Wasm commit vs. CI-built. *Resolution*: CI-built, git-ignored (D6).
+- **O3** — Wasm commit vs. CI-built. *Resolution*: superseded — the demo loads Rego directly via `regopy`; a `.wasm` build (D5a) is only added if the optional artifact path is exercised.
 - **O4** — Local server. *Resolution*: stdlib `http.server` (D7).
 - **O5** — Test double. *Resolution*: dependency-injected fake sinks (D8).
 - **Q6** — Exact coverage threshold and CI tool version pinning (to keep CI functional and reproducible).
@@ -297,7 +299,7 @@ The tasks below are derived from this design and tracked in `TASKS.md`, knocked 
 1. Scaffold repo structure + `requirements.txt`/`requirements-dev.txt`, `pyproject.toml` (pytest-cov, ruff).
 2. Write Rego policy `policies/agent_guardrails.rego` implementing A–H, heroes first.
 3. Write Rego tests `policies/agent_guardrails_test.rego` (T1).
-4. Makefile: `build-wasm`, `test-policy`, `test-integration`, `test-all`, `run-gateway`, `build-zip`, `deploy-local`.
+4. Makefile: `test-policy`, `test-integration`, `test-all`, `run-gateway`, `build-zip`, `deploy-local`.
 5. Engine `src/engine/policy_engine.py` + `SessionStore` (+ unit tests T2).
 6. Gateway `src/gateway/app.py` (schema-validate/enrich/eval/audit) + injected sinks (+ unit tests T3).
 7. Integration tests T4 (`tests/test_gateway_integration.py`) + `tests/testdata/*.json`.
@@ -305,7 +307,7 @@ The tasks below are derived from this design and tracked in `TASKS.md`, knocked 
 9. LangChain interceptor `src/agent_interceptor.py`.
 10. Coverage gate T6 wired into Makefile + pyproject.
 11. OpenTofu module + dev env → `tofu apply` (repeatable deploy).
-12. `.github/workflows/ci.yml` functional pipeline (opa check/test, wasm, ruff, pytest+cov, tofu validate).
+12. `.github/workflows/ci.yml` functional pipeline (opa check/test, ruff, pytest+cov, tofu validate).
 13. Docs: `docs/architecture.md`, `docs/security.md`, `docs/observability.md`, `docs/deployment.md`, README rewrite, `docs/compliance.md`.
 14. Final gate: fresh clone → `make test-all` green, `make run-gateway` demo works, CI green.
 
@@ -316,7 +318,7 @@ The tasks below are derived from this design and tracked in `TASKS.md`, knocked 
 - OWASP GenAI LLM Top 10 (2026) — `GenAI-Security-Project/GenAI-LLM-Top10`
 - AWS AgentCore Policy (Cedar) & Bedrock Guardrails GA notes (2026)
 - MCP 2026-07-28 (stateless) spec
-- OPA v1.20/1.21 (CNCF-graduated), `python-opa` / wasmtime
+- OPA v1.20/1.21 (CNCF-graduated), `regopy` (embedded Rego interpreter)
 - Agent-gateway pattern references (InfoQ, bex.co) — used to shape topology
 - RFD format (Oxide/community) — this document's structure
 - `REQUIREMENTS.md` (requirement source of truth)

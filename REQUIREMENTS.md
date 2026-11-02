@@ -1,6 +1,6 @@
 # Requirements — Serverless Agentic OPA Guardrails
 
-> **Goal:** A serverless, deterministic authorization gate for AI-agent tool execution, architected as an **agent gateway** on **API Gateway → Lambda**, with **in-process OPA (Rego compiled to WebAssembly)** as the enforcement engine.
+> **Goal:** A serverless, deterministic authorization gate for AI-agent tool execution, architected as an **agent gateway** on **API Gateway → Lambda**, with **in-process OPA Rego (`regopy`)** as the enforcement engine.
 >
 > **Primary deliverable — a runnable, deployable artifact.** An engineer must be able to clone the repo and, in minutes, (1) run the gateway locally via `make` and see safe-vs-unsafe decisions, and (2) deploy it for real via OpenTofu. The consulting narrative (industries, OWASP, OTel, managed-vs-custom) lives in `docs/` **behind** the working code — it is secondary to the artifact. **The hero of the project is the differentiating OPA capabilities** (argument/payload inspection, output redaction, rate/deny-window, change-ticket approval); "default-deny gate" is the table-stakes baseline, not the pitch. It targets **early- and mid-stage companies adopting AI** that run serverless on Lambda.
 
@@ -16,7 +16,7 @@ This gate is an **agent gateway**: a dedicated service that sits between agents 
 - AWS now ships **AgentCore Gateway** (GA, unified managed gateway: routing, MCP translation, OAuth/Security Guard, ingress+egress auth, credential exchange, observability) + **Bedrock Guardrails** (GA Jun 2026, LLM input/output content moderation, PII redaction). Both are native first-party layers.
 - **Neither evaluates OPA/Rego.** AgentCore's authorization control is OAuth/Security Guard (Cedar/declarative role rules); Bedrock Guardrails does content moderation, not policy evaluation. OPA/Rego remains the correct tool for the rules those platforms **cannot** express: **complex payload/argument inspection (B), rate/deny-window + session-trajectory cross-referencing (D/E), and change-ticket/approval cross-referencing (F)**. **This is the gap this project fills** — the portable OPA policy-evaluation layer on the tool-dispatch path.
 - **Positioning: complementary, not competitive.** We do not try to out-feature the managed gateways. We own the OPA-only controls they lack, and are designed to sit alongside them (AgentCore for routing/auth, Bedrock Guardrails for input/output moderation) as a defense-in-depth layer. A client can use this gateway *with* either platform — the Rego contract is portable and vendor-agnostic.
-- OPA is **CNCF-graduated** and shipped v1.20/v1.21 — mature, with a compiler that emits portable WebAssembly.
+- OPA is **CNCF-graduated** and shipped v1.20/v1.21 — mature, with a portable Rego evaluation engine and an optional Wasm compilation target.
 - **Deployment reality:** most early/mid-stage AI teams are on **LangChain / MCP / Python on Lambda**, not necessarily Bedrock. The gateway must be **runtime-agnostic** so it demos and deploys regardless of whether the client is LangChain, MCP, or AgentCore.
 
 ---
@@ -140,13 +140,13 @@ The gateway demonstrates the full breadth of what OPA can do for agent guardrail
 
 | ID | Capability | Model | Built-in policy | Tier |
 |----|-----------|-------|-----------------|------|
+| A | **Action / verb-class** | Gate by `tool` verb class (read / mutate / destructive) | `delete_*`, `drop_*`, `reset_*`, `force_*` destructive; read tools authenticated-only | baseline |
 | B | **Argument / payload inspection** | Evaluate the *actual args*, not just the tool name | `delete_cluster` on `env="production"` denied; `env="dev"` allowed; regex/attribute guards on resource IDs | **HERO** |
+| C | **Context / state-aware** | Decision depends on live workload context (target isolation, resource lease) | deny destructive when target not isolated / leased elsewhere | baseline |
+| D | **Trajectory / multi-call history** | Decision references prior events in the session | `delete` only allowed after a `describe` + `dry_run` occurred earlier this session | built (needs session store) |
 | E | **Rate-based / deny-window** | Enforce mutation budgets per window | ≤N destructive/mutations per time window from a given principal/session | **HERO** |
 | F | **Change-ticket / approval cross-ref** | Destructive actions require a real human approval reference | destructive requires `approval.reference != ""` + `dry_run == false` | **HERO** |
 | G | **Output redaction / transform** | Transform tool output before it returns to the LLM (strip secrets/PHI) | redact PHI / secret fields from allowed tool results | **HERO** |
-| A | **Action / verb-class** | Gate by `tool` verb class (read / mutate / destructive) | `delete_*`, `drop_*`, `reset_*`, `force_*` destructive; read tools authenticated-only | baseline |
-| C | **Context / state-aware** | Decision depends on live workload context (target isolation, resource lease) | deny destructive when target not isolated / leased elsewhere | baseline |
-| D | **Trajectory / multi-call history** | Decision references prior events in the session | `delete` only allowed after a `describe` + `dry_run` occurred earlier this session | built (needs session store) |
 | H | **Default-deny + minimal surface** | Unmapped tools blocked until a rule exists | `default allow := false`; new destructive tools fail closed | baseline |
 
 **Cross-call state (D, E) honesty:** in a stateless Lambda, trajectory and rate state live in a **swappable session store** (DynamoDB/Redis in prod; in-memory in the local demo) and are **passed into `input.context.trajectory` / rate counters** on each eval. OPA never holds mutable state itself — it reasons over what the gateway injects. This keeps decisions fast and deterministic while still being trajectory-aware. (State store interface is dependency-injected → swappable for prod.)
@@ -172,7 +172,7 @@ The gateway demonstrates the full breadth of what OPA can do for agent guardrail
 - Serves both deployment forms via a thin HTTP wrapper.
 
 ### 4.4 Engine (`src/engine/policy_engine.py`) — the portable artifact loader
-- Loads `policies/agent_guardrails.wasm` + manifest + data bundle.
+- Loads `policies/agent_guardrails.rego` via `regopy` (embedded Rego interpreter).
 - `evaluate(tool_desired, context, principal) -> {allow, reason}` — the stable API contract.
 - Uses `regopy` (embedded Rego engine) for in-process eval; loads `policies/agent_guardrails.rego` directly.
 - Loads once at cold start; reuses across warm invocations.
