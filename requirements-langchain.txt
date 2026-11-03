@@ -1,0 +1,7 @@
+# OPTIONAL extra — LangChain reference interceptor (T5.1).
+#
+# The gateway core (requirements.txt) stays LangChain-free. Install this only if
+# you want the `OPAGuardrailTool` framework adapter:
+#     pip install -r requirements-langchain.txt
+# Tests for the interceptor skip cleanly when langchain-core is absent.
+langchain-core>=1.0

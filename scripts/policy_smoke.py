@@ -11,6 +11,7 @@ semantic test suite — `opa test policies/` (T1) owns semantic correctness.
 Usage: python3 scripts/policy_smoke.py [policies_dir]
 Exits non-zero on any failure (gate-keeping for CI).
 """
+
 from __future__ import annotations
 
 import sys
@@ -32,12 +33,18 @@ def _load() -> regopy.Interpreter:
     return interp
 
 
-def _decide(interp: regopy.Interpreter, industry: str, tool: str, args: dict,
-            principal: dict, ctx: dict) -> dict | None:
-    interp.set_input({
-        "industry": industry, "tool": tool, "args": args,
-        "principal": principal, "context": ctx,
-    })
+def _decide(
+    interp: regopy.Interpreter, industry: str, tool: str, args: dict, principal: dict, ctx: dict
+) -> dict | None:
+    interp.set_input(
+        {
+            "industry": industry,
+            "tool": tool,
+            "args": args,
+            "principal": principal,
+            "context": ctx,
+        }
+    )
     results = interp.query("data.ai.guardrails.decision").results
     if not results:
         return None
@@ -62,11 +69,23 @@ def main() -> int:
     P = {"id": "svc", "authenticated": True}
 
     # Baseline per-industry decisions (benign allow + a blast-radius deny).
-    check("healthcare/read-allowed",
-          _decide(interp, "healthcare", "get_lab_results", {}, P, {"target": {"leased": False}}), True)
-    check("healthcare/phi-catchall-denied",
-          _decide(interp, "healthcare", "query_phi", {"scope": "all"},
-                  {"id": "svc", "authenticated": True, "authorized_scopes": "all"}, {}), False)
+    check(
+        "healthcare/read-allowed",
+        _decide(interp, "healthcare", "get_lab_results", {}, P, {"target": {"leased": False}}),
+        True,
+    )
+    check(
+        "healthcare/phi-catchall-denied",
+        _decide(
+            interp,
+            "healthcare",
+            "query_phi",
+            {"scope": "all"},
+            {"id": "svc", "authenticated": True, "authorized_scopes": "all"},
+            {},
+        ),
+        False,
+    )
 
     approved = {
         "target": {"isolated": True, "leased": False},
@@ -74,24 +93,49 @@ def main() -> int:
         "rate_window": {"mutations": 0, "max": 3},
         "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}],
     }
-    check("fintech/transfer-allowed",
-          _decide(interp, "fintech", "execute_transfer", {"amount": 100, "beneficiary": "payroll"}, P, approved), True)
-    check("fintech/transfer-no-ticket-denied",
-          _decide(interp, "fintech", "execute_transfer", {"amount": 100, "beneficiary": "payroll"}, P,
-                  {"target": {"isolated": True, "leased": False},
-                   "rate_window": {"mutations": 0, "max": 3},
-                   "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}]}), False)
+    check(
+        "fintech/transfer-allowed",
+        _decide(
+            interp,
+            "fintech",
+            "execute_transfer",
+            {"amount": 100, "beneficiary": "payroll"},
+            P,
+            approved,
+        ),
+        True,
+    )
+    check(
+        "fintech/transfer-no-ticket-denied",
+        _decide(
+            interp,
+            "fintech",
+            "execute_transfer",
+            {"amount": 100, "beneficiary": "payroll"},
+            P,
+            {
+                "target": {"isolated": True, "leased": False},
+                "rate_window": {"mutations": 0, "max": 3},
+                "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}],
+            },
+        ),
+        False,
+    )
 
-    check("secops/revoke-allowed",
-          _decide(interp, "secops", "revoke_token", {"target": "10.0.0.5"}, P, approved), True)
-    check("secops/wildcard-target-denied",
-          _decide(interp, "secops", "revoke_token", {"target": "*"}, P, approved), False)
+    check(
+        "secops/revoke-allowed",
+        _decide(interp, "secops", "revoke_token", {"target": "10.0.0.5"}, P, approved),
+        True,
+    )
+    check(
+        "secops/wildcard-target-denied",
+        _decide(interp, "secops", "revoke_token", {"target": "*"}, P, approved),
+        False,
+    )
 
     # Fail-closed: unknown / empty industry must NOT produce allow=true.
-    check("failclosed/unknown-industry",
-          _decide(interp, "gaming", "get_balance", {}, P, {}), False)
-    check("failclosed/empty-industry",
-          _decide(interp, "", "get_balance", {}, P, {}), False)
+    check("failclosed/unknown-industry", _decide(interp, "gaming", "get_balance", {}, P, {}), False)
+    check("failclosed/empty-industry", _decide(interp, "", "get_balance", {}, P, {}), False)
 
     if failures:
         print("\nSMOKE FAILED:")

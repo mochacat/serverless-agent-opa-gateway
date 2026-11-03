@@ -1,0 +1,24 @@
+{
+  "name": "rate_budget",
+  "description": "Hero E (deny-window): a secops session capped at max=1 destructive op may not exceed its budget once prior destructive calls fill the window.",
+  "request": {
+    "tool": "block_ip",
+    "industry": "secops",
+    "args": {"target": "10.0.0.9"},
+    "context": {
+      "target": {"isolated": true, "leased": false},
+      "approval": {"reference": "CHG-77", "approved": true},
+      "rate_window": {"max": 1},
+      "trajectory": [
+        {"tool": "describe_cluster"},
+        {"tool": "dry_run"},
+        {"tool": "revoke_token"},
+        {"tool": "kill_process"}
+      ]
+    }
+  },
+  "expect": {
+    "allowed": false,
+    "reason_contains": "rate limit"
+  }
+}

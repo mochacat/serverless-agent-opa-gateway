@@ -1,0 +1,18 @@
+{
+  "name": "unapproved_destructive",
+  "description": "Hero F: a money-movement transfer with no change-ticket approval — denied.",
+  "request": {
+    "tool": "execute_transfer",
+    "industry": "fintech",
+    "args": {"amount": 100, "beneficiary": "payroll"},
+    "context": {
+      "target": {"isolated": true, "leased": false},
+      "rate_window": {"max": 3},
+      "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}]
+    }
+  },
+  "expect": {
+    "allowed": false,
+    "reason_contains": "change ticket"
+  }
+}

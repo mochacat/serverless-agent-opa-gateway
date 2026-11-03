@@ -1,0 +1,13 @@
+{
+  "name": "safe_read",
+  "description": "Baseline (A): an authenticated agent reads a benign record — allowed.",
+  "request": {
+    "tool": "get_balance",
+    "industry": "fintech",
+    "args": {},
+    "context": {}
+  },
+  "expect": {
+    "allowed": true
+  }
+}

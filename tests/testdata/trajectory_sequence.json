@@ -1,0 +1,22 @@
+{
+  "name": "trajectory_sequence",
+  "description": "Feature D (look-before-you-leap): a destructive secops action with a valid target but NO describe+dry_run in the session trajectory is denied, then allowed once the pre-checks are recorded through the SessionStore.",
+  "industry": "secops",
+  "tool": "revoke_token",
+  "args": {"target": "10.0.0.5"},
+  "context": {
+    "target": {"isolated": true, "leased": false},
+    "approval": {"reference": "CHG-42", "approved": true},
+    "rate_window": {"max": 3}
+  },
+  "steps": [
+    {
+      "record_events": [],
+      "expect": {"allowed": false, "reason_contains": "trajectory"}
+    },
+    {
+      "record_events": ["describe_cluster", "dry_run"],
+      "expect": {"allowed": true}
+    }
+  ]
+}

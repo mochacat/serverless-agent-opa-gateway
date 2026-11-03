@@ -1,0 +1,19 @@
+{
+  "name": "production_delete",
+  "description": "Baseline C: a destructive close_account against a leased/contended target (the production blast-radius guard) — denied even with an approved ticket and clean trajectory.",
+  "request": {
+    "tool": "close_account",
+    "industry": "fintech",
+    "args": {"amount": 0, "beneficiary": "payroll"},
+    "context": {
+      "target": {"isolated": false, "leased": true},
+      "approval": {"reference": "CHG-900", "approved": true},
+      "rate_window": {"max": 3},
+      "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}]
+    }
+  },
+  "expect": {
+    "allowed": false,
+    "reason_contains": "isolated, unleased target"
+  }
+}

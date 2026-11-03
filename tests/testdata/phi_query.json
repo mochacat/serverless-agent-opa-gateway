@@ -1,0 +1,15 @@
+{
+  "name": "phi_query",
+  "description": "Hero B + G: an over-broad PHI query (scope=all) is denied; a permitted, authorized scope is allowed WITH output redaction of PHI identifiers.",
+  "request": {
+    "tool": "query_phi",
+    "industry": "healthcare",
+    "args": {"scope": "all"},
+    "context": {},
+    "principal_hint": {"authorized_scopes": "all"}
+  },
+  "expect": {
+    "allowed": false,
+    "reason_contains": "PHI query scope"
+  }
+}

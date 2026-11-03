@@ -1,0 +1,19 @@
+{
+  "name": "secops_target_injection",
+  "description": "Hero B: a destructive secops action whose target carries a shell/wildcard injection ('*' or '../etc') is not a well-formed hostname/IP and is denied before any effect.",
+  "request": {
+    "tool": "block_ip",
+    "industry": "secops",
+    "args": {"target": "*; rm -rf /"},
+    "context": {
+      "target": {"isolated": true, "leased": false},
+      "approval": {"reference": "CHG-42", "approved": true},
+      "rate_window": {"max": 3},
+      "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}]
+    }
+  },
+  "expect": {
+    "allowed": false,
+    "reason_contains": "well-formed hostname"
+  }
+}

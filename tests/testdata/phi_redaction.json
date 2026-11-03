@@ -1,0 +1,25 @@
+{
+  "name": "phi_redaction",
+  "description": "Hero B + G: a permitted, authorized PHI query is allowed, and the returned patient record has its PHI identifiers stripped before it reaches the model.",
+  "request": {
+    "tool": "query_phi",
+    "industry": "healthcare",
+    "args": {"scope": "diagnosis"},
+    "principal_hint": {"authorized_scopes": "diagnosis"},
+    "context": {},
+    "output": {
+      "patient_mrn": "MRN-8675309",
+      "patient_name": "Ada Lovelace",
+      "ssn": "000-00-0000",
+      "dob": "1815-12-10",
+      "email": "ada@example.test",
+      "diagnosis_code": "E11.9",
+      "note": "routine follow-up"
+    }
+  },
+  "expect": {
+    "allowed": true,
+    "redacted_fields": ["patient_mrn", "patient_name", "ssn", "dob", "email"],
+    "kept_fields": ["diagnosis_code", "note"]
+  }
+}

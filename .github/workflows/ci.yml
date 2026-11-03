@@ -1,0 +1,124 @@
+# Functional CI pipeline (TASKS T7.1) — "CI green == local green."
+#
+# This pipeline only *validates* the repo. It never deploys and never touches
+# AWS: this is an open-source project, so there is no single target account to
+# deploy to. The deployable artifact is shipped (the OpenTofu module + the
+# Lambda package + a runnable dev root config) and each user runs the documented
+# `tofu apply` in *their own* account — see docs/deployment.md. That keeps CI
+# credential-free and the "zero AWS" invariant intact.
+#
+# Jobs run in parallel; each is its own PR status check.
+#
+#   lint (fast, ~10s): ruff format --check + ruff check — fails the PR before
+#                      the heavy job even starts. Mirrors `make lint`.
+#
+#   test (heavy):
+#     1. opa check         — Rego static analysis
+#     2. opa test          — Rego unit tests (T1, 77/77)
+#     3. regopy smoke      — the embedded engine loads + evals the real policies
+#     4. pytest + cov      — Python test tiers T2–T6 (zero AWS, injected fakes)
+#     5. tofu fmt/validate — infra module + dev root config (init+validate only;
+#                            NO plan/apply, since those need real AWS access)
+#
+# A `build-wasm` stage is optional/D5a-only — the demo evaluates Rego directly
+# via regopy (D5/D6), so there is no .wasm step in the default path.
+#
+# Portability gate: tests run against the same Rego source loaded at runtime
+# (not a pre-compiled artifact), so there is no drift between CI and deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+env:
+  OPA_VERSION: "1.20.2"
+  PYTHON_VERSION: "3.14"
+  TOFU_VERSION: "1.6.0"
+  RUFF_OUTPUT_FORMAT: "github"
+
+jobs:
+  # Fast, independent static-analysis gate. Runs in parallel with `test` and
+  # shows up as its own check on the PR, so formatting/lint failures surface
+  # in seconds without waiting on policy tests, coverage, or tofu.
+  # Keep these two commands identical to the `make lint` target.
+  lint:
+    name: "Lint (ruff format + ruff check)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Format check (ruff format --check)
+        run: ruff format --check src/ tests/ scripts/
+
+      - name: Lint (ruff check)
+        run: ruff check src/ tests/ scripts/
+
+  test:
+    name: "Validate (policy + py + infra)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- Policy layers (T1) ----
+      - name: Install pinned OPA
+        uses: open-policy-agent/setup-opa@v2
+        with:
+          version: ${{ env.OPA_VERSION }}
+
+      - name: Static check (opa check)
+        run: opa check policies/
+
+      - name: Rego unit tests (opa test)
+        run: opa test policies/ -v
+
+      # ---- Python layer (ruff runs in the separate `lint` job) ----
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: In-process regopy load smoke
+        run: python scripts/policy_smoke.py policies/
+
+      - name: Tests + coverage gate (≥80%)
+        run: python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+
+      # ---- Infra layers (zero AWS: init + validate only) ----
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: Infra format check (tofu fmt)
+        run: tofu fmt -check -recursive infra/
+
+      - name: Module validate (tofu validate)
+        run: |
+          cd infra/modules/agent_gateway
+          tofu init -input=false
+          tofu validate -no-color
+
+      - name: Dev env validate (tofu validate)
+        run: |
+          cd infra/envs/dev
+          tofu init -input=false
+          tofu validate -no-color

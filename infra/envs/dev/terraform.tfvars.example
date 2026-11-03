@@ -1,0 +1,27 @@
+# Copy to terraform.tfvars and adjust. This file is committed as an example;
+# the real terraform.tfvars is git-ignored (it may hold account-specific ids).
+
+aws_region  = "us-east-1"
+agent_name  = "agent-gw"
+
+# Built by `make build-zip` (root of the Lambda package: src/ + policies/ + deps).
+lambda_source_dir = "../../../build/lambda"
+
+# FinOps — cheap dev defaults.
+memory_size          = 512
+reserved_concurrency = 2
+log_retention_days   = 30
+
+# Security — supply a CMK ARN in shared/prod environments.
+# kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/abcd..."
+
+# Compliance — declare the frameworks this deployment supports. Setting
+# "hipaa" raises the audit-log retention floor to ~6 years automatically.
+compliance_frameworks = []
+
+# CORS — empty denies all cross-origin (agents call server-to-server).
+allowed_origins = []
+
+tags = {
+  Owner = "platform-team"
+}

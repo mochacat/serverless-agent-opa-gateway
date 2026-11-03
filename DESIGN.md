@@ -125,7 +125,8 @@ Tool dispatch gated         Destructive action blocked . per-call audit trail
 | **Engine** | `src/engine/policy_engine.py` | Load Rego via `regopy` once; `evaluate(...) -> Decision` (portable API) |
 | **Gateway app** | `src/gateway/app.py` | JSON-RPC; schema-validate → enrich → eval → respond → audit |
 | **Lambda entrypoint** | `src/handler.py` | Adapt API Gateway event→request→gateway→response |
-| **Interceptor** | `src/agent_interceptor.py` | LangChain `BaseTool` client hook that calls the gateway |
+| **Interceptor (LangChain)** | `src/agent_interceptor.py` (`OPAGuardrailTool`) | Wraps a `BaseTool`; gates `invoke`/`ainvoke` via `src/agent_gateway_client.py` |
+| **Gateway client** | `src/agent_gateway_client.py` | Stdlib JSON-RPC client; fail-closed `Verdict`; reused by every framework adapter |
 | **Session store (D/E)** | `src/engine/session_store.py` | In-memory swappable store; supplies trajectory/rate state |
 | **Audit sink** | (interface) | Injected; CloudWatch in prod, fake in tests |
 | **Metric sink** | (interface) | Injected; OTel-swallwing in local, real OTLP optional |
@@ -229,6 +230,13 @@ HTTP request → gateway server → schema-validate → identity enrich
   - Outputs: `gateway_url`, `lambda_arn`, `audit_log_group`.
 - **Runnable root config** `infra/envs/dev/` → `tofu apply`.
 - **Rego is loaded from source** directly via `regopy` — no build artifact; the Lambda package includes `policies/*.rego` directly.
+- **Network privacy (default public, hardening optional):** the reference
+  deploy is a public API Gateway HTTP → Lambda. The module exposes
+  `vpc_subnet_ids`/`vpc_security_group_ids` (attach the Lambda to a VPC) and
+  a PrivateLink/`execute-api` **interface VPC endpoint** is the documented
+  path for keeping agent↔gateway traffic internal. Not enabled by default;
+  API Gateway keeps a public execution path, so truly private-only needs a
+  resource-policy lockdown (out of scope). See `docs/deployment.md` §7.1.
 
 ### 4.8 Testing & CI (from REQUIREMENTS §5.1/5.2)
 
@@ -255,6 +263,45 @@ HTTP request → gateway server → schema-validate → identity enrich
 
 - **OWASP LLM Top-10 (2026) Covered:** LLM01 (Prompt Injection, via tool-dispatch gate), LLM02 (Sensitive Info Disclosure, via G redaction), LLM03 (Excessive Agency, via default-deny/verb-class), LLM06 (Unbounded Consumption, via rate), LLM10 (Improper Output Handling, via G). The other five (04, 05, 07, 08, 09) are documented as boundaries, never overclaimed.
 - **Agent holds no credentials.** gateway enriches identity server-side; infra IAM is least-privilege.
+
+### 4.11 Adapter layer & the normalized tool-call schema (the stable contract)
+
+**Rego never reads a framework's raw payload.** Policy evaluates a small,
+gateway-owned **normalized schema**; a thin **adapter** per agent framework
+copies the requested tool-name and arguments into it. This keeps the policy
+layer stable across every framework instead of being rewritten for each one.
+
+Normalized `input` (the *only* shape Rego sees — see `4.3`):
+
+| field | type | meaning |
+|---|---|---|
+| `input.tool` | string | requested tool name (e.g. `"execute_transfer"`) |
+| `input.args` | object | the tool's arguments |
+| `input.principal` | object | caller identity, enriched server-side (`authenticated`, `authorized_scopes`) |
+| `input.context` | object | cross-call state (trajectory D, rate E, approval F, target C), injected from session store |
+| `input.industry` | string | selects the policy package (healthcare/fintech/secops) |
+
+Framework shapes map onto it by copying two fields (`tool` name + `args`):
+
+| Ecosystem | source of name | source of args |
+|---|---|---|
+| OpenAI | `message.tool_calls[].function.name` | `.function.arguments` (JSON string) |
+| Anthropic | `content[]` block `type:"tool_use"` → `.name` | `.input` (object) |
+| **MCP** (open standard) | `tools/call` `params.name` | `params.arguments` (object) |
+| LangGraph | emits OpenAI-shape `tool_call` | same as OpenAI |
+
+**Reference adapter: MCP.** MCP is the one real open standard (Linux
+Foundation; Anthropic/OpenAI/Google tooling support it), and its `tools/call`
+already uses `name`+`arguments` — the smallest, most defensible mapping. The
+gateway is **not** an MCP *server*; it is a policy decision point an
+MCP-based agent routes `tools/call` into. Other frameworks are documented as
+one page of field-mapping each, added only for frameworks actually supported
+(per `REQUIREMENTS` — no speculative adapters).
+
+**Versioning discipline:** the normalized schema is the stable API. Changing
+it (e.g. `input.args` → `input.arguments`) breaks every policy, so it is
+documented, versioned, and adapters are built to it — never policy-to-vendor-
+format.
 
 ---
 
