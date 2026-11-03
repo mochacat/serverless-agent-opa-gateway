@@ -17,6 +17,11 @@ addopts = "-ra"
 [tool.coverage.run]
 source = ["src"]
 omit = ["src/__init__.py"]
+# NOTE: src/agent_interceptor.py + src/agent_gateway_client.py are covered by
+# tests/test_agent_interceptor.py, which needs the optional langchain-core extra.
+# requirements-dev.txt pulls requirements-langchain.txt so CI and local dev
+# always run those tests; running pytest without the extra would skip them and
+# drop total coverage (~75%), tripping the gate below. Install dev deps first.
 
 [tool.coverage.report]
 # T6 coverage gate: the engine/gateway/handler must stay ≥ 80% covered.
