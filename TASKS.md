@@ -66,6 +66,8 @@
 
 - [x] **T5.1** `src/agent_interceptor.py` — `OPAGuardrailTool`: wraps a LangChain `BaseTool`, gates every `invoke`/`ainvoke` through the gateway (`src/agent_gateway_client.py`), returns the policy reason on DENY (model re-plans), applies G-redaction on ALLOW. ✅ (`requirements-langchain.txt` optional extra; `make demo-langchain` shows a real gated tool: `get_balance` ALLOW, over-cap `execute_transfer` DENY with real Rego reason; 10 tests, skips cleanly when langchain absent.)
   - **Done =** works against the local server. ✅
+- [x] **T5.2** `src/agent_interceptor_pydantic.py` — `build_gateway_hooks()`: a pydantic-ai `Hooks` **capability** that gates *inside* the agent's own tool loop. `before_tool_execute` asks the gateway with the validated args (DENY → `ModelRetry`, tool never runs, model re-plans); `after_tool_execute` applies G-redaction. Identity/context read off `RunContext.deps` (env-style enrichment), build-time defaults as fallback. ✅ (`requirements-pydanticai.txt` optional extra; `make demo-pydantic` drives a real pydantic-ai agent through `$10M` over-cap DENY → re-plan within policy → `$5k` ALLOW, no hosted model (scripted `TestModel`); 7 tests, skips cleanly when pydantic-ai absent.)
+  - **Done =** works against the local server. ✅
 
 ---
 

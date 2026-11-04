@@ -4,6 +4,8 @@
 # of the suite — install it in dev/CI so tests/test_agent_interceptor.py runs
 # (and so coverage of src/agent_*.py is measured) instead of skipping.
 -r requirements-langchain.txt
+# Same for the Pydantic AI adapter: tests/test_agent_interceptor_pydantic.py.
+-r requirements-pydanticai.txt
 
 pytest==8.4.1
 pytest-cov==6.2.1

@@ -116,6 +116,44 @@ Agent (LangChain / MCP / LlamaIndex)          AWS Lambda Control Plane
 Tool dispatch gated         Destructive action blocked . per-call audit trail
 ```
 
+### 4.1a Why a gateway at all (vs. embedding the policy in-process)?
+
+`regopy` runs Rego in-process, so the *policy evaluation itself* costs nothing
+extra — the question is **who controls it and how it's reached**. The design
+chooses a shared network gateway (API Gateway → Lambda) because the product's
+target is the multi-agent / service-mesh case, not a single trusted process.
+
+**When an in-process library would be better.** If only one agent runs in one
+process all owned by the same team, embedding the engine as a library is lower-
+latency and simpler. That path is fully supported — `GatewayApp` is transport-
+agnostic and callable directly (the local server, the Lambda handler, and the
+`GatewayClient` all drive the same object). The gateway is not a claim that
+this shape is *always* best.
+
+**Why a shared gateway is the right default here:**
+- **Centralized, single-source policy.** One copy of the Rego + one place to
+  change it. Embedded libs mean a policy update re-deploys *every* agent and
+  copies drift — which becomes a security hole.
+- **Enforcement at a trust boundary you control.** When the agent is
+  third-party, non-Python, or not fully trusted, you cannot ship it a library
+  and trust it to enforce. The gate must live on the network path *under the
+  infra/security team's* control — the agent cannot tamper with, version, or
+  bypass it. This is what makes "agent holds no credentials; the gateway
+  enriches identity server-side" a real property and not a slogan.
+- **Agent-agnostic.** A library only gates Python agents in your process; the
+  gateway gates any agent (LangChain, MCP, any runtime) over one HTTP surface.
+- **One audit trail.** Enforcement and evidence live in one CloudWatch/compliance
+  store, not scattered across each agent's logs — the property auditors and
+  the FinOps/security program actually rely on.
+- **Serverless economics.** Stateless, scale-to-zero, bills on compute used —
+  the right shape for spiky/multi-agent traffic and for the stateless-MCP
+  model.
+
+**Net.** The tool-dispatch decision is in-memory either way; the gateway is the
+container that makes that decision *shared, auditable, and enforced at a
+boundary nobody but the platform team can cross*. When that's not needed,
+embed it instead — the seam is the point, not the API Gateway.
+
 ### 4.2 Components & interfaces
 
 | Component | Path | Responsibility |
@@ -126,6 +164,7 @@ Tool dispatch gated         Destructive action blocked . per-call audit trail
 | **Gateway app** | `src/gateway/app.py` | JSON-RPC; schema-validate → enrich → eval → respond → audit |
 | **Lambda entrypoint** | `src/handler.py` | Adapt API Gateway event→request→gateway→response |
 | **Interceptor (LangChain)** | `src/agent_interceptor.py` (`OPAGuardrailTool`) | Wraps a `BaseTool`; gates `invoke`/`ainvoke` via `src/agent_gateway_client.py` |
+| **Interceptor (Pydantic AI)** | `src/agent_interceptor_pydantic.py` (`build_gateway_hooks`) | `Hooks` capability; gates `before_tool_execute`/`after_tool_execute` inside the agent's own loop |
 | **Gateway client** | `src/agent_gateway_client.py` | Stdlib JSON-RPC client; fail-closed `Verdict`; reused by every framework adapter |
 | **Session store (D/E)** | `src/engine/session_store.py` | In-memory swappable store; supplies trajectory/rate state |
 | **Audit sink** | (interface) | Injected; CloudWatch in prod, fake in tests |
@@ -290,13 +329,27 @@ Framework shapes map onto it by copying two fields (`tool` name + `args`):
 | **MCP** (open standard) | `tools/call` `params.name` | `params.arguments` (object) |
 | LangGraph | emits OpenAI-shape `tool_call` | same as OpenAI |
 
-**Reference adapter: MCP.** MCP is the one real open standard (Linux
-Foundation; Anthropic/OpenAI/Google tooling support it), and its `tools/call`
-already uses `name`+`arguments` — the smallest, most defensible mapping. The
-gateway is **not** an MCP *server*; it is a policy decision point an
-MCP-based agent routes `tools/call` into. Other frameworks are documented as
-one page of field-mapping each, added only for frameworks actually supported
-(per `REQUIREMENTS` — no speculative adapters).
+**Reference adapters (built).** Two frameworks are actually implemented:
+
+  * **LangChain** — `src/agent_interceptor.py`: `OPAGuardrailTool` subclasses
+    `BaseTool` and overrides `invoke`/`ainvoke` to gate then delegate, because it
+    is the most widely used agent framework in Python and its `@tool` model is
+    closest to this normalized schema.
+  * **Pydantic AI** — `src/agent_interceptor_pydantic.py`: `build_gateway_hooks()`
+    returns a `Hooks` **capability** (`@hooks.on.before_tool_execute` /
+    `@hooks.on.after_tool_execute`) you attach to the `Agent`. Because pydantic-ai
+    calls the tool functions itself, the gate fires *inside* its own execution
+    loop — DENY raises `ModelRetry` (tool never runs, model re-plans), redaction
+    substitutes the output. Same reusable bundle attaches to every agent an org
+    runs (the "one control plane, agent-agnostic" story, §4.1a).
+
+MCP remains the one true open standard (Linux Foundation;
+Anthropic/OpenAI/Google tooling support it), and its `tools/call` already uses
+`name`+`arguments` — the smallest, most defensible mapping. The gateway is
+**not** an MCP *server*; it is a policy decision point an MCP-based agent routes
+`tools/call` into. Other frameworks are documented as one page of field-mapping
+each, added only for frameworks actually supported (per `REQUIREMENTS` — no
+speculative adapters).
 
 **Versioning discipline:** the normalized schema is the stable API. Changing
 it (e.g. `input.args` → `input.arguments`) breaks every policy, so it is

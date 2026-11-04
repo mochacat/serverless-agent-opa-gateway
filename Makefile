@@ -10,7 +10,7 @@
 #
 # CI runs the same targets — "CI green == local green".
 
-.PHONY: lint test-policy test-integration test-all run-gateway demo demo-langchain build-zip deploy destroy plan help
+.PHONY: lint test-policy test-integration test-all run-gateway demo demo-langchain demo-pydantic build-zip deploy destroy plan help
 
 POLICIES_DIR := policies
 # Runtime + dev deps (regopy/boto3/pytest) are installed in `.venv` (see
@@ -67,6 +67,21 @@ demo-langchain: ## One-shot demo: a real LangChain agent's tools gated by the ga
 	  trap 'kill $$GW 2>/dev/null' EXIT; \
 	  sleep 2; \
 	  $(PY) scripts/demo_langchain_agent.py --url http://127.0.0.1:8080; \
+	  EXIT=$$?; \
+	  kill $$GW 2>/dev/null; \
+	  wait $$GW 2>/dev/null; \
+	  exit $$EXIT
+
+demo-pydantic: ## One-shot demo: a Pydantic AI agent gated by the gateway
+	@$(PY) -c "import pydantic_ai" 2>/dev/null || { \
+	  echo "→ installing the optional Pydantic AI extra (requirements-pydanticai.txt)"; \
+	  $(PY) -m pip install -q -r requirements-pydanticai.txt; }
+	@echo "→ starting gateway and running scripts/demo_pydantic_agent.py"
+	@$(PY) -m src.gateway.server --port 8080 > $(DEMO_LOG) 2>&1 & \
+	  GW=$$!; \
+	  trap 'kill $$GW 2>/dev/null' EXIT; \
+	  sleep 2; \
+	  $(PY) scripts/demo_pydantic_agent.py --url http://127.0.0.1:8080; \
 	  EXIT=$$?; \
 	  kill $$GW 2>/dev/null; \
 	  wait $$GW 2>/dev/null; \

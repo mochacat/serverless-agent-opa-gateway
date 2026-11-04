@@ -182,10 +182,21 @@ The gateway demonstrates the full breadth of what OPA can do for agent guardrail
 - Adapts API Gateway event → policy request → gateway app → decision response.
 - Same app runs under a local server for `make run-gateway`.
 
-### 4.6 LangChain agent interceptor (`src/agent_interceptor.py`)
-- `OPAGuardrailInterceptor` — client-side hook; **calls the gateway** (control plane) before executing a `BaseTool`.
-- On DENY: returns the reason to the LLM so it can re-plan (matches README's LangChain example).
-- Demonstrates the runtime-agnostic client posture (works against Lambda URL / local server).
+### 4.6 Framework adapters (`src/agent_interceptor*.py`)
+Two reference adapters show how any agent framework's tool dispatch maps onto
+the gateway and is gated before it executes. Both are optional/lazy-imported —
+the gateway core is framework-free.
+
+- **LangChain** (`src/agent_interceptor.py`): `OPAGuardrailTool` subclasses
+  `BaseTool`, gates every `invoke`/`ainvoke` through the gateway, returns the
+  reason on DENY (LLM re-plans), applies G-redaction on ALLOW.
+- **Pydantic AI** (`src/agent_interceptor_pydantic.py`): `build_gateway_hooks()`
+  returns a `Hooks` capability (`before_tool_execute`/`after_tool_execute`)
+  attached to the `Agent`; the gate fires inside pydantic-ai's own tool loop —
+  DENY raises `ModelRetry` (tool never runs, model re-plans), redaction
+  substitutes the output. Identity/context read off `RunContext.deps`.
+- Both demonstrate the runtime-agnostic client posture (work against the Lambda
+  URL or the local server).
 
 ### 4.7 Scoped-credential posture
 - Agent holds **no credentials**. The gateway exposes only the scoped authorization needed per call (principle stated; lightweight in the demo — no full RFC 8693 token service in v1, documented as a future path). Infra IAM is least-privilege.
@@ -294,7 +305,8 @@ Observability is **OpenTelemetry-native and vendor-agnostic** (no preference for
 | `src/engine/policy_engine.py` | In-process Rego evaluator via `regopy` (portable API) |
 | `src/gateway/app.py` | Gateway service (MCP/JSON-RPC) |
 | `src/handler.py` | Lambda entrypoint |
-| `src/agent_interceptor.py` | LangChain BaseTool guardrail client |
+| `src/agent_interceptor.py` | LangChain guardrail adapter (`OPAGuardrailTool`) |
+| `src/agent_interceptor_pydantic.py` | Pydantic AI guardrail adapter (`build_gateway_hooks`) |
 | `tests/test_policy_engine.py` | Engine unit tests (T2) |
 | `tests/test_gateway_unit.py` | Gateway schema/decision/audit unit tests (T3) |
 | `tests/test_gateway_integration.py` | Safe-vs-unsafe end-to-end tests (T4) |
