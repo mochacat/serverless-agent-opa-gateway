@@ -53,6 +53,18 @@ Run the full demo across all industries and scenarios:
 make demo
 ```
 
+## Framework compatibility
+
+The gateway ships with optional adapters for three agent frameworks. Each adapter is a thin wrapper that intercepts tool dispatch and gates it through the gateway — no agent-side policy logic, no framework lock-in.
+
+| Framework | Adapter | Install | Demo |
+|-----------|---------|---------|------|
+| **LangChain** | `OPAGuardrailTool` wraps a `BaseTool` — every `invoke`/`ainvoke` hits the gateway first. DENY returns the policy reason (model re-plans). | `pip install -e .[langchain]` | `make demo-langchain` |
+| **Pydantic AI** | `build_gateway_hooks()` attaches a `Hooks` capability — `before_tool_execute` gates the call, `after_tool_execute` applies G-redaction. DENY raises `ModelRetry` (model re-plans). | `pip install -e .[pydantic]` | `make demo-pydantic` |
+| **Strands SDK** | `GatewayGuardrail` as a `HookProvider` — intercepts `BeforeToolCallEvent`/`AfterToolCallEvent`. DENY sets `cancel_tool` (model receives error-status result). | `pip install -e .[strands]` | `make demo-strands` |
+
+The gateway core (`src/gateway/`, `src/engine/`) has **zero framework dependencies** — it speaks JSON-RPC over HTTP. The adapters are entirely optional extras in `[project.optional-dependencies]`. If your framework isn't listed, you can call `POST /tools/call` directly from any agent code (see `examples/verify/demo_agent.py`).
+
 ## Architecture
 
 ```
