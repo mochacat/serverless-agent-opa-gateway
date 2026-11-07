@@ -53,6 +53,17 @@ resource "aws_lambda_function" "gateway" {
       LOG_FORMAT       = "json" # structured JSON lines -> CloudWatch
       LOG_LEVEL        = var.environment == "prod" ? "INFO" : "DEBUG"
       COMPLIANCE_SCOPE = join(",", var.compliance_frameworks)
+
+      # OpenTelemetry environment variables (standard OTLP exporter config).
+      # Set these when the OTel SDK is added to the Lambda package. The gateway
+      # reads the same vars the agent framework uses, so traces join the same
+      # trace tree automatically. See docs/observability.md.
+      # OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.example.com:4318"
+      # OTEL_EXPORTER_OTLP_PROTOCOL  = "http/protobuf"
+      # OTEL_SERVICE_NAME            = "agentic-opa-guardrails"
+      # OTEL_RESOURCE_ATTRIBUTES     = "deployment.environment=${var.environment}"
+      # OTEL_TRACES_SAMPLER          = "parentbased_traceidratio"
+      # OTEL_TRACES_SAMPLER_ARG      = "1.0"
     }
   }
 

@@ -89,9 +89,9 @@ make demo
 │                                                           │ │
 │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
 │  │ Audit Sink   │  │ Metrics Sink │  │ Session Store   │  │
-│  │ (CloudWatch) │  │ (OTLP-ready) │  │ (trajectory,    │  │
-│  └──────────────┘  └──────────────┘  │ rate window)    │  │
-│                                       └─────────────────┘  │
+│  │ (stdout→CW)  │  │ (in-memory,  │  │ (trajectory,    │  │
+│  └──────────────┘  │  OTLP seam)  │  │ rate window)    │  │
+│                    └──────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -237,6 +237,26 @@ The remaining five (LLM04/05/07/08/09) are documented **boundaries** in
 `docs/security.md` — the gateway never overclaims coverage.
 
 ## Capabilities (A–H)
+
+The gateway ships with **three industry reference policies** — fintech,
+healthcare, and secops. Each defines a set of hypothetical tools to
+demonstrate the same policy capabilities with different nouns and rules:
+
+| Industry | Read tools | Mutate tools | Destructive tools | What it shows |
+|---|---|---|---|---|
+| **Fintech** | `get_balance`, `get_account`, `list_transactions`, `get_rate` | `create_transfer`, `update_beneficiary`, `send_otp` | `execute_transfer`, `approve_payment`, `revoke_card`, `close_account` | Money movement needs a change ticket (F), amount caps & beneficiary allowlist (B), rate limits (E) |
+| **Healthcare** | `read_patient_record`, `get_lab_results`, `list_appointments`, `query_phi` | `update_patient_demographics`, `submit_claim`, `schedule_appointment` | `delete_patient_record`, `anonymize_patient_record`, `bulk_export_records` | PHI scope authorization (B), output redaction of patient identifiers (G) |
+| **SecOps** | `list_hosts`, `get_host`, `list_incidents`, `search_logs` | `quarantine_host`, `isolate_host`, `update_playbook` | `revoke_token`, `block_ip`, `kill_process`, `reset_cluster_state` | Shell-injection blocking in targets (B), target isolation requirement (C) |
+
+> **These are reference examples, not a production tool catalog.** The tools
+> shown here (`get_balance`, `query_phi`, `block_ip`, etc.) are hypothetical
+> — they exist only in the Rego policies to demonstrate the gate's capabilities.
+> When you deploy this gateway, you'll replace these with your own tools and
+> write Rego rules that match your actual use case. The `policies/` directory
+> is the single source of truth; add a new `.rego` file for your industry, or
+> customize the existing ones.
+
+The same policy capabilities apply across all three industries:
 
 | Capability | Hero | Description |
 |---|---|---|

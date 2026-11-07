@@ -94,14 +94,14 @@
 
 ## Phase 4 — Docs & final gate
 
-- [ ] **T8.1** Rewrite `README.md` — *why API Gateway → Lambda for multi-agent* (cost + spiky + stateless-MCP), quickstart (`make`), hero-capabilities callout (B/E/F/G), industry positioning, OWASP-covered items, "what this is / isn't" boundaries. **Remove stale content** (old "replication lag / B2B-resume" text).
+- [x] **T8.1** Rewrite `README.md` — *why API Gateway → Lambda for multi-agent* (cost + spiky + stateless-MCP), quickstart (`make`), hero-capabilities callout (B/E/F/G), industry positioning, OWASP-covered items, "what this is / isn't" boundaries. **Remove stale content** (old "replication lag / B2B-resume" text).
   - **Done =** README matches the built artifact; quickstart runs end-to-end in ~10s.
-- [ ] **T8.2** `docs/architecture.md` — deployment model, managed-vs-custom (Cedar/Guardrails vs OPA), latency honesty, module/env layout.
-- [ ] **T8.3** `docs/security.md` — OWASP GenAI LLM Top-10 (2026) mapping + threat boundaries; never overclaiming.
-- [ ] **T8.4** `docs/observability.md` — OTel adapter seam: `policy_decision` span schema, inbound-parent trace extraction, OTLP export (vendor-agnostic), async/off-critical-path.
-- [ ] **T8.5** `docs/deployment.md` — local vs real deploy, cold-start/latency notes, module input/output reference, post-apply smoke test.
-- [ ] **T8.6** `docs/compliance.md` — HIPAA/SOC2/ISO control-family mapping presented as *supports*, not certification; explicit scope boundaries.
-- [ ] **T8.7** **Final gate** — fresh clone → `make test-all` green, `make run-gateway` demo works (zero AWS), CI green, README quickstart reproducible.
+- [x] **T8.2** `docs/architecture.md` — deployment model, managed-vs-custom (Cedar/Guardrails vs OPA), latency honesty, module/env layout.
+- [x] **T8.3** `docs/security.md` — OWASP GenAI LLM Top-10 (2026) mapping + threat boundaries; never overclaiming. IAM auth flow documented with Terraform config.
+- [x] **T8.4** `docs/observability.md` — OTel adapter seam: `policy_decision` span schema, inbound-parent trace extraction, OTLP export (vendor-agnostic), async/off-critical-path. Honest about what's a seam vs implemented.
+- [x] **T8.5** `docs/deployment.md` — local vs real deploy, cold-start/latency notes, module input/output reference, post-apply smoke test.
+- [x] **T8.6** `docs/compliance.md` — HIPAA/SOC2/ISO control-family mapping presented as *supports*, not certification; explicit scope boundaries.
+- [x] **T8.7** **Final gate** — fresh clone → `make test-all` green, `make run-gateway` demo works (zero AWS), CI green, README quickstart reproducible.
   - **Done =** whole-project definition of done passes on a clean checkout.
 - [x] **T8.8** Idiomatic Python + Lambda restructure — `[build-system]` table, `[project.optional-dependencies]`, `handler.py` moved to project root, `PY := python3` in Makefile, framework extras install via `pip install -e .[extra]` instead of separate `requirements-*.txt`. All references updated.
   - **Done =** 113 tests pass, 93% coverage, ruff clean, `opa test` 77/77, handler coverage at 95%.
