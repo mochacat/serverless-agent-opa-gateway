@@ -4,12 +4,12 @@
 Run against the local server (``make run-gateway`` in another terminal), then
 this script sends a series of tool-call requests. For each you'll see:
 
-  TOOL           → ALLOW / DENY [+ reason]
+  TOOL           -> ALLOW / DENY [+ reason]
 
 Uses plain HTTP (``requests``) — no LangChain, no agent framework. The gateway
 itself is the product.
 
-Usage:  python3 scripts/demo_agent.py [--url http://127.0.0.1:8080]
+Usage:  python3 examples/verify/demo_agent.py [--url http://127.0.0.1:8080]
 """
 
 from __future__ import annotations
@@ -17,11 +17,6 @@ from __future__ import annotations
 import json
 import sys
 from urllib.request import Request, urlopen
-
-GRN = "\033[92m"
-RED = "\033[91m"
-CYN = "\033[96m"
-RST = "\033[0m"
 
 
 def main(gw_url: str) -> None:
@@ -37,7 +32,7 @@ def main(gw_url: str) -> None:
                 "_principal": "clinician",
                 "_mock_output": {
                     "patient_mrn": "MRN-1",
-                    "ssn": "555-55-5555",
+                    "ssn": "[SSN]",
                     "diagnosis_code": "E11.9",
                     "note": "follow-up",
                 },
@@ -88,14 +83,14 @@ def main(gw_url: str) -> None:
                 }
             },
         ),
-        ("unknown industry → fail-closed", "gaming", "get_balance", {}),
+        ("unknown industry -> fail-closed", "gaming", "get_balance", {}),
     ]
 
     for label, industry, tool, extras in calls:
         context = extras.pop("_context", {})
         mock_output = extras.pop("_mock_output", None)
         # Default to an authenticated operator service identity; a call that
-        # needs extra scopes (clinician → PHI) supplies its own _principal.
+        # needs extra scopes (clinician -> PHI) supplies its own _principal.
         principal_id = extras.pop("_principal", "ops")
         params = {"tool": tool, "industry": industry, "args": extras}
         if context:
@@ -110,7 +105,7 @@ def main(gw_url: str) -> None:
 
         if "result" in resp:
             r = resp["result"]
-            flag = f"{GRN}ALLOW{RST}"
+            flag = "ALLOW"
             extra = ""
             if r.get("redacted_output"):
                 extra = f"  (redacted: {r['redacted_output']})"
@@ -121,11 +116,10 @@ def main(gw_url: str) -> None:
                 .get("data", {})
                 .get("reason", resp.get("error", {}).get("message", "?"))
             )
-            flag = f"{RED}DENY {RST}"
-            print(f"  {flag}  {label}")
-            print(f"         ↳ {reason}")
+            print(f"  DENY  {label}")
+            print(f"         -> {reason}")
 
-    print(f"\n  {CYN}Done — the gateway decided all calls locally, no AWS involved.{RST}")
+    print("\n  Done — the gateway decided all calls locally, no AWS involved.")
 
 
 def _post(url: str, payload: dict) -> dict:
@@ -139,5 +133,5 @@ def _post(url: str, payload: dict) -> dict:
 
 if __name__ == "__main__":
     url = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8080"
-    print(f"\n  {CYN}🔐 agent gateway demo — POST /tools/call {url}{RST}\n")
+    print(f"\n  agent gateway demo — POST /tools/call {url}\n")
     main(url)

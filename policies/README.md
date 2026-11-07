@@ -119,6 +119,6 @@ Every test tier asserts the **policy-safety invariant** (REQUIREMENTS.md §5.1, 
 
 All three run in CI on push + PR; the build **fails** on any broken policy, failing test, or policy that fails to load. Make targets: `make test-policy` (layers 1–2), `make test-integration` (layer 3 + gateway), `make test-all`.
 
-**The live workflow** is `.github/workflows/policy-validation.yml` — it runs these three layers against the actual `policies/` in this repo on every push/PR touching `policies/`. Locally, layer 3 runs via `python scripts/policy_smoke.py policies/`.
+**The live workflow** is `.github/workflows/policy-validation.yml` — it runs these three layers against the actual `policies/` in this repo on every push/PR touching `policies/`. Locally, layer 3 runs via `python examples/verify/policy_smoke.py policies/`.
 
 > **No-drift (N4):** tests and the deployed Lambda consume the **same `policies/` files from git**. There is no `.wasm`/compiled artifact in the demo path (D5/D6, D5a) — so the tested policy *is* the deployed policy by construction.

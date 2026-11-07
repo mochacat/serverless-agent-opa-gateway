@@ -62,10 +62,10 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Format check (ruff format --check)
-        run: ruff format --check src/ tests/ scripts/ handler.py
+        run: ruff format --check src/ tests/ examples/ handler.py
 
       - name: Lint (ruff check)
-        run: ruff check src/ tests/ scripts/ handler.py
+        run: ruff check src/ tests/ examples/ handler.py
 
   test:
     name: "Validate (policy + py + infra)"
@@ -97,7 +97,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: In-process regopy load smoke
-        run: python scripts/policy_smoke.py policies/
+        run: python examples/verify/policy_smoke.py policies/
 
       - name: Tests + coverage gate (≥80%)
         run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=80

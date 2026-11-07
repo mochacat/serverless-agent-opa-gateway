@@ -304,5 +304,9 @@ network model, see `docs/security.md`.
 ├── policies/               # OPA Rego policy source (base + fintech/healthcare/secops)
 ├── tests/                  # All pytest tiers (zero AWS, injected fakes)
 ├── infra/                  # OpenTofu module + dev root config
-└── scripts/                # Demo agents (raw, LangChain, Pydantic AI, Strands)
+└── examples/               # Customer-facing demos by framework
+    ├── langchain/           #   LangChain tool interceptor
+    ├── pydantic/            #   Pydantic AI agent hooks
+    ├── strands/             #   Strands SDK gateway agent
+    └── verify/              #   Raw JSON-RPC demo + CI policy smoke
 ```

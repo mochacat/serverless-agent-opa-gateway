@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""In-process policy load smoke (CI layer 3, REQUIREMENTS.md §5.6).
+"""In-process policy load smoke (CI layer 3, REQUIREMENTS.md S5.6).
 
 Loads every `.rego` in `policies/` with regopy — the same engine the Lambda
 embeds — and evaluates a fixture decision per industry. Asserts the deployed
@@ -8,7 +8,7 @@ evaluation path parses the Rego and returns a well-formed decision.
 This is a SMOKE check (proves the runtime loads + evaluates), not the full
 semantic test suite — `opa test policies/` (T1) owns semantic correctness.
 
-Usage: python3 scripts/policy_smoke.py [policies_dir]
+Usage: python3 examples/verify/policy_smoke.py [policies_dir]
 Exits non-zero on any failure (gate-keeping for CI).
 """
 

@@ -20,7 +20,7 @@ Prereqs:
   * ``pip install -e .[strands]`` (the optional interceptor)
   * a gateway running locally: ``make run-gateway`` (another terminal)
 
-Usage:  python3 scripts/demo_strands_agent.py [--url http://127.0.0.1:8080]
+Usage:  python3 examples/strands/gateway_agent.py [--url http://127.0.0.1:8080]
 """
 
 from __future__ import annotations
@@ -29,20 +29,14 @@ import argparse
 import sys
 from pathlib import Path
 
-# Allow running as `python scripts/demo_strands_agent.py` from the repo root.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# Allow running as `python examples/strands/gateway_agent.py` from the repo root.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent
 from strands.types.tools import ToolResult, ToolUse
 
 from src.agent_gateway_client import GatewayClient
 from src.agent_interceptor_strands import GatewayGuardrail
-
-GRN = "\033[92m"
-RED = "\033[91m"
-CYN = "\033[96m"
-DIM = "\033[2m"
-RST = "\033[0m"
 
 
 def make_tool_use(name: str, tid: str, input: dict) -> ToolUse:
@@ -74,7 +68,7 @@ def run_scenario(
     tool_uses: list[ToolUse],
 ) -> None:
     """Drive one scenario through the gate and redaction hooks."""
-    print(f"\n  {CYN}── {label} ──{RST}\n")
+    print(f"\n  -- {label} --\n")
     for tu in tool_uses:
         before = BeforeToolCallEvent(
             agent=_STUB_AGENT,
@@ -89,8 +83,8 @@ def run_scenario(
         verdict_stashed = guard._verdicts.get(tid)
 
         if before.cancel_tool is not False:
-            print(f"    {RED}✗ DENY{RST}  {tu['name']}({tu['input']})")
-            print(f"    {DIM}  → {before.cancel_tool}{RST}")
+            print(f"    x DENY  {tu['name']}({tu['input']})")
+            print(f"      -> {before.cancel_tool}")
             # On deny, the tool never runs; we still fire AfterToolCallEvent
             # (Strands does this internally) with the cancel message.
             after = AfterToolCallEvent(
@@ -109,8 +103,8 @@ def run_scenario(
         else:
             # Simulate the tool running and producing a result
             tool_output = f"executed {tu['name']}({tu['input']})"
-            print(f"    {GRN}✓ ALLOW{RST} {tu['name']}({tu['input']})")
-            print(f"    {DIM}  → {tool_output}{RST}")
+            print(f"    v ALLOW {tu['name']}({tu['input']})")
+            print(f"      -> {tool_output}")
             after = AfterToolCallEvent(
                 agent=_STUB_AGENT,
                 selected_tool=None,  # type: ignore[arg-type]
@@ -128,7 +122,7 @@ def run_scenario(
 
         if verdict_stashed and verdict_stashed.redacted_output is not None:
             redacted_text = after.result["content"][0].get("text", "")
-            print(f"    {CYN}  ✄ redacted →{RST} {redacted_text}")
+            print(f"      redacted -> {redacted_text}")
 
 
 def main(gw_url: str) -> int:
@@ -201,7 +195,7 @@ if __name__ == "__main__":
     try:
         sys.exit(main(ns.url))
     except Exception as exc:  # noqa: BLE001 — friendly message for a demo
-        print(f"{RED}demo failed: {exc}{RST}", file=sys.stderr)
+        print(f"demo failed: {exc}", file=sys.stderr)
         print(
             "is the gateway running?  make run-gateway   (and pip install -e .[strands])",
             file=sys.stderr,

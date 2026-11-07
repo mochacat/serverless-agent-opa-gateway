@@ -16,7 +16,7 @@ Prereqs:
   * ``pip install -e .[pydantic]`` (the optional interceptor)
   * a gateway running locally: ``make run-gateway`` (another terminal)
 
-Usage:  python3 scripts/demo_pydantic_agent.py [--url http://127.0.0.1:8080]
+Usage:  python3 examples/pydantic/agent_hooks.py [--url http://127.0.0.1:8080]
 """
 
 from __future__ import annotations
@@ -25,9 +25,9 @@ import argparse
 import sys
 from pathlib import Path
 
-# Allow running as `python scripts/demo_pydantic_agent.py` from the repo root
+# Allow running as `python examples/pydantic/agent_hooks.py` from the repo root
 # without installing the package: put the repo root on the import path.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from pydantic_ai import Agent
 from pydantic_ai.models.test import TestModel
@@ -35,12 +35,6 @@ from pydantic_ai.tools import ToolDefinition
 
 from src.agent_gateway_client import GatewayClient
 from src.agent_interceptor_pydantic import DENIED_PREFIX, build_gateway_hooks
-
-GRN = "\033[92m"
-RED = "\033[91m"
-CYN = "\033[96m"
-DIM = "\033[2m"
-RST = "\033[0m"
 
 
 class Deps:
@@ -122,7 +116,7 @@ def main(gw_url: str) -> int:
         ),
     )
 
-    print(f"\n  {CYN}Pydantic AI agent → gated tools → gateway {gw_url}{RST}\n")
+    print(f"\n  Pydantic AI agent -> gated tools -> gateway {gw_url}\n")
 
     result = agent.run_sync(
         "transfer $10,000,000 to vendor_alpha",
@@ -139,12 +133,10 @@ def main(gw_url: str) -> int:
         if str(getattr(part, "content", "")).startswith(DENIED_PREFIX)
     ]
     if denied:
-        print(f"    {RED}✗ gateway denied the first attempt{RST} → {denied[0].content}")
-        print(f"    {DIM}model saw the policy reason and retried within policy{RST}")
-    print(f"    {GRN}✓ final:{RST} {result.output}")
-    print(
-        f"\n  {CYN}Done — every tool dispatch was decided by the gateway before the tool ran.{RST}\n"
-    )
+        print(f"    x gateway denied the first attempt -> {denied[0].content}")
+        print("    model saw the policy reason and retried within policy")
+    print(f"    v final: {result.output}")
+    print("\n  Done — every tool dispatch was decided by the gateway before the tool ran.\n")
     # A demo where nothing was ever denied means the gate isn't wired; surface it.
     return 0 if denied else 1
 
@@ -156,7 +148,7 @@ if __name__ == "__main__":
     try:
         sys.exit(main(ns.url))
     except Exception as exc:  # noqa: BLE001 — friendly message for a demo
-        print(f"{RED}demo failed: {exc}{RST}", file=sys.stderr)
+        print(f"demo failed: {exc}", file=sys.stderr)
         print(
             "is the gateway running?  make run-gateway   (and pip install -e .[pydantic])",
             file=sys.stderr,
