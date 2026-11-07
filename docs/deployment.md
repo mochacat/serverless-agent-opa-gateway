@@ -47,7 +47,7 @@ Key knobs (see `infra/envs/dev/variables.tf` for all):
 ```hcl
 aws_region            = "us-east-1"
 agent_name            = "agent-gw"
-lambda_source_dir     = "../../../build/lambda"   # produced by make build-zip
+lambda_source_dir     = "../../../build/lambda"   # pre-built by make deploy: src/ + policies/ + pip deps
 memory_size           = 512          # FinOps: right-size
 reserved_concurrency  = 2            # FinOps: caps max cost
 log_retention_days    = 30           # raised automatically by compliance floor
@@ -61,12 +61,12 @@ allowed_origins       = []           # empty = deny all cross-origin
 ## 4. Deploy
 
 ```bash
-# 1. Build the Lambda package (code + policies + runtime deps -> build/lambda)
-make build-zip
+# Single command: builds the Lambda package (src/ + policies/ + pip deps),
+# then runs tofu init + apply in YOUR account.
+make deploy        # == build/lambda/ + cd infra/envs/dev && tofu init && tofu apply -auto-approve
 
-# 2. Preview, then apply — in YOUR account
-make plan
-make deploy        # == cd infra/envs/dev && tofu init && tofu apply -auto-approve
+# Preview without deploying (still needs the build step first):
+make plan          # runs tofu plan in the dev env
 ```
 
 `make deploy` prints the resulting `tools_call_url`. Tear it down with
@@ -109,9 +109,10 @@ The audit record for each call lands in the CloudWatch log group named by
 - **Warm decision latency** is sub-millisecond in-process — there is no network
   hop to an OPA server (D2/D2a). A shared OPA *service* is only the documented
   long-running scale path, not the default.
-- **Package size:** `make build-zip` includes the `regopy` native wheel (~44 MB).
-  It fits Lambda's 250 MB unzipped limit; above 50 MB the provider uploads via
-  S3 automatically. If size matters, a future arm64 wheel (faster, cheaper, but
+- **Package size:** `make deploy` pip-installs runtime deps then terraform zips
+  the result via `archive_file` (~44 MB with the `regopy` native wheel). It fits
+  Lambda's 250 MB unzipped limit; above 50 MB the provider uploads via S3
+  automatically. If size matters, a future arm64 wheel (faster, cheaper, but
   `regopy` currently ships x86_64 only — see `infra/modules/agent_gateway/lambda.tf`)
   is a one-attribute change.
 

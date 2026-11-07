@@ -27,6 +27,7 @@ module "agent_gateway" {
   log_retention_days   = var.log_retention_days
 
   # Security / Compliance
+  agent_role_arn        = var.agent_role_arn
   kms_key_arn           = var.kms_key_arn
   compliance_frameworks = var.compliance_frameworks
   allowed_origins       = var.allowed_origins

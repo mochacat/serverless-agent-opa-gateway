@@ -14,7 +14,7 @@ variable "agent_name" {
 }
 
 variable "lambda_source_dir" {
-  description = "Directory of the built Lambda package root (contains src/ + policies/). Built by `make build-zip`."
+  description = "Directory containing the pre-built Lambda package (src/ + policies/ + pip deps)."
   type        = string
   default     = "../../../build/lambda"
 }
@@ -49,6 +49,12 @@ variable "compliance_frameworks" {
   description = "Frameworks this env supports (drives tags + retention floor)."
   type        = list(string)
   default     = []
+}
+
+variable "agent_role_arn" {
+  description = "IAM role ARN the agent runs as (restricts gateway invocation to this role)."
+  type        = string
+  default     = null
 }
 
 variable "allowed_origins" {

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "agentic-opa-guardrails"
 version = "0.1.0"
@@ -9,19 +13,30 @@ dependencies = [
     "requests",
 ]
 
+[project.optional-dependencies]
+langchain = ["langchain-core>=1.0"]
+pydantic = ["pydantic-ai>=2.12"]
+strands = ["strands-agents>=1.64.0"]
+dev = [
+    "agentic-opa-guardrails[langchain,pydantic,strands]",
+    "pytest>=8.4",
+    "pytest-cov>=6.2",
+    "ruff>=0.12",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
 # Test tiers T2-T6 run with zero AWS (injected fakes). See REQUIREMENTS.md §5.1.
 
 [tool.coverage.run]
-source = ["src"]
-omit = ["src/__init__.py"]
-# NOTE: src/agent_interceptor.py + src/agent_gateway_client.py are covered by
-# tests/test_agent_interceptor.py, which needs the optional langchain-core extra.
-# requirements-dev.txt pulls requirements-langchain.txt so CI and local dev
-# always run those tests; running pytest without the extra would skip them and
-# drop total coverage (~75%), tripping the gate below. Install dev deps first.
+source = ["src", "."]
+omit = ["src/__init__.py", "tests/*", "scripts/*", "build/*", "infra/*"]
+# NOTE: src/agent_interceptor*.py + src/agent_gateway_client.py are covered by
+# tests/test_agent_interceptor*.py, which need their respective optional extras
+# (langchain-core, pydantic-ai, strands-agents). requirements-dev.txt pulls all
+# of them so CI and local dev always run those tests; running pytest without the
+# extras would skip them and drop total coverage (~75%), tripping the gate below.
 
 [tool.coverage.report]
 # T6 coverage gate: the engine/gateway/handler must stay ≥ 80% covered.

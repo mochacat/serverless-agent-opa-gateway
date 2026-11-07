@@ -64,9 +64,9 @@
 > working* with a real agent framework (allow/deny + re-plan on deny). LangChain first, Pydantic
 > AI next. Frameworks stay optional/lazy imports — the gateway core is framework-free.
 
-- [x] **T5.1** `src/agent_interceptor.py` — `OPAGuardrailTool`: wraps a LangChain `BaseTool`, gates every `invoke`/`ainvoke` through the gateway (`src/agent_gateway_client.py`), returns the policy reason on DENY (model re-plans), applies G-redaction on ALLOW. ✅ (`requirements-langchain.txt` optional extra; `make demo-langchain` shows a real gated tool: `get_balance` ALLOW, over-cap `execute_transfer` DENY with real Rego reason; 10 tests, skips cleanly when langchain absent.)
+- [x] **T5.1** `src/agent_interceptor.py` — `OPAGuardrailTool`: wraps a LangChain `BaseTool`, gates every `invoke`/`ainvoke` through the gateway (`src/agent_gateway_client.py`), returns the policy reason on DENY (model re-plans), applies G-redaction on ALLOW. ✅ (`[langchain]` optional extra; `make demo-langchain` shows a real gated tool: `get_balance` ALLOW, over-cap `execute_transfer` DENY with real Rego reason; 10 tests, skips cleanly when langchain absent.)
   - **Done =** works against the local server. ✅
-- [x] **T5.2** `src/agent_interceptor_pydantic.py` — `build_gateway_hooks()`: a pydantic-ai `Hooks` **capability** that gates *inside* the agent's own tool loop. `before_tool_execute` asks the gateway with the validated args (DENY → `ModelRetry`, tool never runs, model re-plans); `after_tool_execute` applies G-redaction. Identity/context read off `RunContext.deps` (env-style enrichment), build-time defaults as fallback. ✅ (`requirements-pydanticai.txt` optional extra; `make demo-pydantic` drives a real pydantic-ai agent through `$10M` over-cap DENY → re-plan within policy → `$5k` ALLOW, no hosted model (scripted `TestModel`); 7 tests, skips cleanly when pydantic-ai absent.)
+- [x] **T5.2** `src/agent_interceptor_pydantic.py` — `build_gateway_hooks()`: a pydantic-ai `Hooks` **capability** that gates *inside* the agent's own tool loop. `before_tool_execute` asks the gateway with the validated args (DENY → `ModelRetry`, tool never runs, model re-plans); `after_tool_execute` applies G-redaction. Identity/context read off `RunContext.deps` (env-style enrichment), build-time defaults as fallback. ✅ (`[pydantic]` optional extra; `make demo-pydantic` drives a real pydantic-ai agent through `$10M` over-cap DENY → re-plan within policy → `$5k` ALLOW, no hosted model (scripted `TestModel`); 7 tests, skips cleanly when pydantic-ai absent.)
   - **Done =** works against the local server. ✅
 
 ---
@@ -77,10 +77,10 @@
   - **Done =** `tofu validate` on the module passes; inputs/outputs per `DESIGN.md` §4.7. ✅ (8 files: variables.tf [core + SECURITY+COMPLIANCE+FINOPS inputs], locals.tf [mandatory tags + compliance retention floor], versions.tf, main_role.tf [least-privilege — only logs:CreateLogStream/PutLogEvents, scoped KMS], cloudwatch.tf [retention = max(requested, compliance floor)], lambda.tf [x86_64 — regopy only ships x86_64 wheels on PyPI; arm64 documented as the switch when aarch64 wheel is available], apigw.tf [HTTP API, throttling, CORS locked down], outputs.tf [gateway_url, tools_call_url, lambda_arn, audit_log_group_arn, etc.].)
 - [x] **T6.2** `infra/envs/dev/` — runnable root config instantiating the module → `tofu apply`.
   - **Done =** `tofu fmt -check` + `tofu validate` pass; plan is apply-able (CI uses validate only; real apply is the manual deploy step). ✅ (4 files: main.tf [dev instantiates module with cheap defaults], variables.tf, outputs.tf, versions.tf [+ terraform.tfvars.example]. Both module + root config `tofu validate` green.)
-- [x] **T6.3** Makefile — `build-zip` (Lambda package incl. `policies/*.rego` + code), `deploy`/`tofu apply` helper.
-  - **Done =** `make build-zip` produces a deployable artifact; deploy path documented (`docs/deployment.md`). ✅ (`make build-zip` → `build/agent-gw.zip` ~44MB (23MB compressed zip sites; 250MB Lambda limit fine; >50MB needs S3 upload for deploy). `deploy` is `tofu apply` from infra/envs/dev/ + docs for the deploy path.)
-- [x] **T6.0** (also built) `src/handler.py` + `tests/test_handler.py` — Lambda entrypoint adapting API Gateway HTTP API v2 events → GatewayApp → response.
-  - **Done =** handler tests (8) pass; handler is the entrypoint the module's lambda.tf references. ([`src/handler.py`](src/handler.py) and [`tests/test_handler.py`](tests/test_handler.py) were missing from the TASKS list — added and verified to close the Lambda deploy gap.)
+- [x] **T6.3** OpenTofu — `archive_file` data source zips `src/` + `policies/` directly. No separate `make build-zip` step.
+  - **Done =** terraform builds the Lambda package internally via `archive_file` with appropriate excludes. `deploy` runs `tofu apply` directly; `make build-zip` and `make deploy` removed. ✅
+- [x] **T6.0** (also built) `handler.py` + `tests/test_handler.py` — Lambda entrypoint adapting API Gateway HTTP API v2 events → GatewayApp → response.
+  - **Done =** handler tests (8) pass; handler is the entrypoint the module's lambda.tf references. ([`handler.py`](handler.py) and [`tests/test_handler.py`](tests/test_handler.py) were missing from the TASKS list — added and verified to close the Lambda deploy gap.)
 
 ---
 
@@ -103,6 +103,8 @@
 - [ ] **T8.6** `docs/compliance.md` — HIPAA/SOC2/ISO control-family mapping presented as *supports*, not certification; explicit scope boundaries.
 - [ ] **T8.7** **Final gate** — fresh clone → `make test-all` green, `make run-gateway` demo works (zero AWS), CI green, README quickstart reproducible.
   - **Done =** whole-project definition of done passes on a clean checkout.
+- [x] **T8.8** Idiomatic Python + Lambda restructure — `[build-system]` table, `[project.optional-dependencies]`, `handler.py` moved to project root, `PY := python3` in Makefile, framework extras install via `pip install -e .[extra]` instead of separate `requirements-*.txt`. All references updated.
+  - **Done =** 113 tests pass, 93% coverage, ruff clean, `opa test` 77/77, handler coverage at 95%.
 
 ---
 

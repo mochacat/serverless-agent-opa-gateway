@@ -16,7 +16,7 @@ How it hooks in (idiomatic, version-stable):
     hands back to the model so it can re-plan. The tool's real implementation
     never runs on a deny.
 
-``langchain-core`` is an **optional** extra (``requirements-langchain.txt``),
+``langchain-core`` is an **optional** extra (``pip install -e .[langchain]``),
 imported lazily; the gateway core stays LangChain-free. Import this module only
 when LangChain is installed.
 """

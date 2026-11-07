@@ -8,7 +8,7 @@ the running gateway (real Rego) before the tool runs. On DENY the policy reason
 flows back and a (scripted) agent re-plans — the loop an LLM would drive.
 
 Prereqs:
-  * ``pip install -r requirements-langchain.txt`` (the optional interceptor)
+  * ``pip install -e .[langchain]`` (the optional interceptor)
   * a gateway running locally: ``make run-gateway`` (another terminal)
 
 Usage:  python3 scripts/demo_langchain_agent.py [--url http://127.0.0.1:8080]
@@ -94,8 +94,7 @@ if __name__ == "__main__":
     except Exception as exc:  # noqa: BLE001 — friendly message for a demo
         print(f"{RED}demo failed: {exc}{RST}", file=sys.stderr)
         print(
-            "is the gateway running?  make run-gateway   (and pip install -r "
-            "requirements-langchain.txt)",
+            "is the gateway running?  make run-gateway   (and pip install -e .[langchain])",
             file=sys.stderr,
         )
         sys.exit(2)

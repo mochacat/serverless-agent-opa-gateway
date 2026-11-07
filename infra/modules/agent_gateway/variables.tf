@@ -33,14 +33,14 @@ variable "region" {
 }
 
 variable "lambda_source_dir" {
-  description = "Directory whose contents are zipped into the Lambda package (built by `make build-zip`)."
+  description = "Directory whose contents are zipped into the Lambda package (pre-built: src/ + policies/ + pip deps)."
   type        = string
 }
 
 variable "lambda_handler" {
   description = "Lambda handler entrypoint (module.function)."
   type        = string
-  default     = "src.handler.handler"
+  default     = "handler.handler"
 }
 
 variable "runtime" {
@@ -50,6 +50,17 @@ variable "runtime" {
 }
 
 # ---------------------------------------------- SECURITY ------------------
+variable "agent_role_arn" {
+  description = <<-EOT
+    IAM role ARN the agent runs as (e.g. ECS task role, EC2 instance profile).
+    When set, a resource-based policy on the API Gateway restricts invocation
+    to this role only — least-privilege. When null, any IAM-authenticated
+    caller with execute-api:Invoke can call the gateway (wide open).
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "kms_key_arn" {
   description = <<-EOT
     Customer-managed KMS key for CloudWatch Logs + Lambda env encryption.

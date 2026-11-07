@@ -26,6 +26,23 @@ from src.metrics.metrics import InMemoryMetricsSink
 _app: GatewayApp | None = None
 
 
+def _extract_iam_principal(event: dict) -> dict | None:
+    """Extract the authenticated IAM principal from the API Gateway event.
+
+    When the route uses ``AWS_IAM`` auth, API Gateway verifies the SigV4
+    signature and passes the resolved identity in
+    ``requestContext.authorizer.iam``. Returns None if no IAM auth is present
+    (local testing or non-IAM auth).
+    """
+    auth = (event.get("requestContext") or {}).get("authorizer") or {}
+    iam = auth.get("iam") or {}
+    user_arn = iam.get("userArn") or ""
+    if user_arn:
+        # userArn is "arn:aws:sts::123456789012:assumed-role/agent-role/session"
+        return {"id": user_arn, "authenticated": True, "authorized_scopes": ""}
+    return None
+
+
 def _get_app() -> GatewayApp:
     global _app
     if _app is None:
@@ -89,6 +106,18 @@ def handler(event: dict[str, Any], context: Any = None) -> dict[str, Any]:
 
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
     traceparent = headers.get("traceparent")
+
+    # Inject the server-side IAM principal into the request params so the
+    # gateway never trusts a caller-supplied identity (agent holds no creds).
+    iam_principal = _extract_iam_principal(event)
+    if iam_principal is not None and isinstance(body, str | bytes):
+        try:
+            parsed = json.loads(body if isinstance(body, str) else body.decode("utf-8"))
+            if isinstance(parsed, dict) and isinstance(parsed.get("params"), dict):
+                parsed["params"]["principal"] = iam_principal
+                body = parsed
+        except (ValueError, TypeError):
+            pass  # fall through to handle() which returns parse error
 
     response = _get_app().handle(body, traceparent)
     # JSON-RPC over HTTP: a well-formed request (allow OR deny) is HTTP 200;

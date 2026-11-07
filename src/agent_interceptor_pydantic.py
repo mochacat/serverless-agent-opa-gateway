@@ -33,7 +33,7 @@ story, DESIGN §4.1a):
     from src.agent_interceptor_pydantic import build_gateway_hooks
     agent = Agent(model, capabilities=[build_gateway_hooks(industry="fintech")])
 
-``pydantic-ai`` is an **optional** extra (``requirements-pydanticai.txt``),
+``pydantic-ai`` is an **optional** extra (``pip install -e .[pydantic]``),
 imported lazily; the gateway core stays framework-free. Import this module only
 when ``pydantic-ai`` is installed.
 """

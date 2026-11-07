@@ -29,7 +29,7 @@ from src.gateway.app import GatewayApp, GatewayConfig
 
 # Demo identity store — a stand-in for a directory/KMS-backed lookup (the
 # gateway, not the agent, decides what a caller may do). Local-only: this
-# never ships to the Lambda (see src/handler.py, which wires no
+# never ships to the Lambda (see handler.py, which wires no
 # enrich_principal and relies on infra IAM instead).
 #
 # PRINCIPAL_STORE overrides the store from an env var (JSON) so a local run

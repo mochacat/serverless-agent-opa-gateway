@@ -62,10 +62,10 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Format check (ruff format --check)
-        run: ruff format --check src/ tests/ scripts/
+        run: ruff format --check src/ tests/ scripts/ handler.py
 
       - name: Lint (ruff check)
-        run: ruff check src/ tests/ scripts/
+        run: ruff check src/ tests/ scripts/ handler.py
 
   test:
     name: "Validate (policy + py + infra)"
@@ -100,7 +100,7 @@ jobs:
         run: python scripts/policy_smoke.py policies/
 
       - name: Tests + coverage gate (≥80%)
-        run: python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+        run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=80
 
       # ---- Infra layers (zero AWS: init + validate only) ----
       - name: Install OpenTofu

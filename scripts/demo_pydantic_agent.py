@@ -13,7 +13,7 @@ pydantic-ai's ``TestModel`` so the demo needs no API key / hosted model; it
 scripts the tool calls and then produces a final text answer.
 
 Prereqs:
-  * ``pip install -r requirements-pydanticai.txt`` (the optional interceptor)
+  * ``pip install -e .[pydantic]`` (the optional interceptor)
   * a gateway running locally: ``make run-gateway`` (another terminal)
 
 Usage:  python3 scripts/demo_pydantic_agent.py [--url http://127.0.0.1:8080]
@@ -158,8 +158,7 @@ if __name__ == "__main__":
     except Exception as exc:  # noqa: BLE001 — friendly message for a demo
         print(f"{RED}demo failed: {exc}{RST}", file=sys.stderr)
         print(
-            "is the gateway running?  make run-gateway   (and pip install -r "
-            "requirements-pydanticai.txt)",
+            "is the gateway running?  make run-gateway   (and pip install -e .[pydantic])",
             file=sys.stderr,
         )
         sys.exit(2)

@@ -1,12 +1,5 @@
 # Development / CI dependencies.
 -r requirements.txt
-# The LangChain interceptor is an optional runtime extra, but its tests are part
-# of the suite — install it in dev/CI so tests/test_agent_interceptor.py runs
-# (and so coverage of src/agent_*.py is measured) instead of skipping.
--r requirements-langchain.txt
-# Same for the Pydantic AI adapter: tests/test_agent_interceptor_pydantic.py.
--r requirements-pydanticai.txt
-
-pytest==8.4.1
-pytest-cov==6.2.1
-ruff==0.12.5
+# Framework adapter extras (defined in pyproject.toml [project.optional-dependencies]).
+# These ensure tests for all adapters run in dev/CI (coverage stays above the gate).
+-e .[dev]

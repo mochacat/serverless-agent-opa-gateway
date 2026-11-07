@@ -177,7 +177,7 @@ The gateway demonstrates the full breadth of what OPA can do for agent guardrail
 - Uses `regopy` (embedded Rego engine) for in-process eval; loads `policies/agent_guardrails.rego` directly.
 - Loads once at cold start; reuses across warm invocations.
 
-### 4.5 Lambda entrypoint (`src/handler.py`)
+### 4.5 Lambda entrypoint (`handler.py`)
 - AWS Lambda `handler(event, context)`.
 - Adapts API Gateway event → policy request → gateway app → decision response.
 - Same app runs under a local server for `make run-gateway`.
@@ -229,7 +229,7 @@ Testing is multi-tier so each layer is verified independently and end-to-end. **
 | **T2 Engine unit tests** | `src/engine/policy_engine.py` | `pytest` | Loads Rego via `regopy`; `evaluate(tool,args,context,principal)->{allow,reason}` returns correct decision + reason for representative inputs; determinism | ✅ no AWS (in-process eval) |
 | **T3 Gateway unit tests** | `src/gateway/app.py` | `pytest` | Schema validation rejects malformed requests; identity enrichment; correct allow/deny JSON-RPC responses; audit record written (via injected fake logger) | ✅ no AWS (injected audit sink) |
 | **T4 Gateway integration** | end-to-end: sample request → gateway → engine → decision | `pytest` | **Safe vs unsafe** scenarios through the real in-process engine: e.g. read allowed, destructive-without-approval denied, production-delete denied, PHI redaction applies, trajectory (D) & rate (E) enforce. | ✅ no AWS (in-memory session store + fake audit sink) |
-| **T5 Lambda handler tests** | `src/handler.py` adapting API Gateway events | `pytest` | Correct request→policy→response mapping; correct JSON-RPC/HTTP shape for API Gateway; deny returns structured reason; audit emitted | ✅ no AWS (injected sinks) |
+| **T5 Lambda handler tests** | `handler.py` adapting API Gateway events | `pytest` | Correct request→policy→response mapping; correct JSON-RPC/HTTP shape for API Gateway; deny returns structured reason; audit emitted | ✅ no AWS (injected sinks) |
 | **T6 Coverage gate** | pytest + coverage | pytest-cov | Enforce a coverage threshold (e.g. ≥80%) on engines/gateway/handler | ✅ no AWS |
 
 **Test data:** `tests/testdata/*.json` holds mocked request payloads — safe vs unsafe reads, destructive-with/without approval, production-delete, PHI query, trajectory sequences, rate-budget sequences.
@@ -304,7 +304,7 @@ Observability is **OpenTelemetry-native and vendor-agnostic** (no preference for
 | `policies/agent_guardrails_test.rego` | Native Rego unit tests |
 | `src/engine/policy_engine.py` | In-process Rego evaluator via `regopy` (portable API) |
 | `src/gateway/app.py` | Gateway service (MCP/JSON-RPC) |
-| `src/handler.py` | Lambda entrypoint |
+| `handler.py` | Lambda entrypoint |
 | `src/agent_interceptor.py` | LangChain guardrail adapter (`OPAGuardrailTool`) |
 | `src/agent_interceptor_pydantic.py` | Pydantic AI guardrail adapter (`build_gateway_hooks`) |
 | `tests/test_policy_engine.py` | Engine unit tests (T2) |

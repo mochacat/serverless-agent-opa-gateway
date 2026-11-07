@@ -34,7 +34,7 @@ resource "aws_apigatewayv2_route" "tools_call" {
   api_id             = aws_apigatewayv2_api.gateway.id
   route_key          = "POST /tools/call"
   target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
-  authorization_type = "NONE" # caller auth handled by the gateway's own identity enrichment; see docs/security.md
+  authorization_type = "AWS_IAM"
 }
 
 resource "aws_apigatewayv2_route" "health" {
@@ -73,4 +73,28 @@ resource "aws_apigatewayv2_stage" "default" {
   }
 
   tags = local.tags
+}
+
+# ---------------------------------------------------------------------------
+# SECURITY: resource-based policy that restricts who can invoke the gateway.
+# When agent_role_arn is set, only that IAM role (or any session chained to
+# it) may call POST /tools/call. When null, any IAM-authenticated caller with
+# execute-api:Invoke can call — use for wide-open dev environments.
+# ---------------------------------------------------------------------------
+data "aws_iam_policy_document" "gateway_invoke" {
+  statement {
+    sid    = "AllowInvocation"
+    effect = "Allow"
+    principals {
+      type        = "AWS"
+      identifiers = var.agent_role_arn != null ? [var.agent_role_arn] : ["*"]
+    }
+    actions   = ["execute-api:Invoke"]
+    resources = ["${aws_apigatewayv2_api.gateway.execution_arn}/*/*"]
+  }
+}
+
+resource "aws_apigatewayv2_api_policy" "gateway" {
+  api_id       = aws_apigatewayv2_api.gateway.id
+  policy       = data.aws_iam_policy_document.gateway_invoke.json
 }

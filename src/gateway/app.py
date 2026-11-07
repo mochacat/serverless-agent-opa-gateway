@@ -192,6 +192,12 @@ class GatewayApp:
         return None
 
     def _resolve_principal(self, tool: str, params: Mapping[str, Any]) -> dict[str, Any]:
+        # Allow server-side injection of a pre-resolved principal (the Lambda
+        # handler injects the IAM identity before calling handle()). This takes
+        # precedence so the gateway never trusts a caller-supplied identity.
+        resolved = params.get("principal")
+        if isinstance(resolved, dict) and resolved.get("authenticated"):
+            return dict(resolved)
         if self._config.enrich_principal is not None:
             return dict(self._config.enrich_principal(tool, params) or {})
         # Default local posture: a server-side service identity, authenticated.

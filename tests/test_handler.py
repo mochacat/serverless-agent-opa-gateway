@@ -1,6 +1,6 @@
 """Lambda handler tests — API Gateway (payload v2.0) event → response (T5).
 
-Feeds :func:`src.handler.handler` a faithful mock of API Gateway HTTP-API v2.0
+Feeds :func:`handler.handler` a faithful mock of API Gateway HTTP-API v2.0
 events and asserts the request→policy→response mapping, including base64
 bodies, deny-as-structured-reason, and audit emission. Zero AWS credentials —
 the handler builds its own app with the same in-process engine as every tier.
@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64
 import json
 
-from src.handler import handler
+from handler import handler
 
 # The supplied default audit sink is StdoutAuditSink; tests focus on the HTTP
 # contract asserted via the response envelope (the StdoutAuditSink path is
@@ -153,3 +153,29 @@ def test_traceparent_propagates_into_decision() -> None:
         )
     )
     assert resp["statusCode"] == 200
+
+
+def test_iam_auth_principal_resolved_from_event() -> None:
+    """When API Gateway uses AWS_IAM auth, the resolved IAM principal
+    should appear in the principal and the request should be allowed."""
+    event = _event(
+        {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {"tool": "get_balance", "industry": "fintech"},
+        }
+    )
+    event["requestContext"]["authorizer"] = {
+        "iam": {
+            "accessKey": "AKIAIOSFODNN7EXAMPLE",
+            "accountId": "123456789012",
+            "callerId": "AIDAEXAMPLECALLER",
+            "userArn": "arn:aws:sts::123456789012:assumed-role/agent-role/session",
+            "userId": "AROAEXAMPLEID:session",
+        }
+    }
+    resp = handler(event)
+    assert resp["statusCode"] == 200
+    envelope = json.loads(resp["body"])
+    assert envelope["result"]["allowed"] is True

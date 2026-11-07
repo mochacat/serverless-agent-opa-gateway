@@ -20,7 +20,7 @@ Do not describe this as a "portfolio" or "consulting showcase" — it is a clien
 
 ## Testing & CI ground rules
 - **All tests run with zero AWS credentials** (the only exception is a manual deploy/smoke step). AWS interactions are dependency-injected fakes — do not introduce boto3/moto/localstack into the test path for the core logic.
-- The **real Lambda is a deploy artifact**, not a test dependency. `src/handler.py` is a thin adapter over an API Gateway event contract; tests feed it a mock event.
+- The **real Lambda is a deploy artifact**, not a test dependency. `handler.py` is a thin adapter over an API Gateway event contract; tests feed it a mock event.
 - `Makefile` targets: `test-policy` (rego), `test-integration` (pytest, all tiers), `test-all`, `run-gateway`, `build-zip`. CI runs the same steps — "CI green == local green."
 - CI must be **functional**: `opa check` → `opa test` → `regopy` load smoke → ruff → pytest+cov → `tofu validate`. Deploy is manual (`workflow_dispatch`).
 

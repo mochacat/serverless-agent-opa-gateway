@@ -24,6 +24,10 @@ crash.log
 *.tfvars
 !infra/envs/dev/*.tfvars.example
 
+# AI tools
+.codegraph/
+.claude/
+
 # Editor / OS
 .idea/
 .vscode/

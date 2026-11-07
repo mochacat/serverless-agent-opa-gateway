@@ -162,7 +162,7 @@ embed it instead — the seam is the point, not the API Gateway.
 | **Rego tests** | `policies/agent_guardrails_test.rego` | `opa test` unit tests (T1) |
 | **Engine** | `src/engine/policy_engine.py` | Load Rego via `regopy` once; `evaluate(...) -> Decision` (portable API) |
 | **Gateway app** | `src/gateway/app.py` | JSON-RPC; schema-validate → enrich → eval → respond → audit |
-| **Lambda entrypoint** | `src/handler.py` | Adapt API Gateway event→request→gateway→response |
+| **Lambda entrypoint** | `handler.py` | Adapt API Gateway event→request→gateway→response |
 | **Interceptor (LangChain)** | `src/agent_interceptor.py` (`OPAGuardrailTool`) | Wraps a `BaseTool`; gates `invoke`/`ainvoke` via `src/agent_gateway_client.py` |
 | **Interceptor (Pydantic AI)** | `src/agent_interceptor_pydantic.py` (`build_gateway_hooks`) | `Hooks` capability; gates `before_tool_execute`/`after_tool_execute` inside the agent's own loop |
 | **Gateway client** | `src/agent_gateway_client.py` | Stdlib JSON-RPC client; fail-closed `Verdict`; reused by every framework adapter |
@@ -403,7 +403,7 @@ The tasks below are derived from this design and tracked in `TASKS.md`, knocked 
 5. Engine `src/engine/policy_engine.py` + `SessionStore` (+ unit tests T2).
 6. Gateway `src/gateway/app.py` (schema-validate/enrich/eval/audit) + injected sinks (+ unit tests T3).
 7. Integration tests T4 (`tests/test_gateway_integration.py`) + `tests/testdata/*.json`.
-8. Lambda handler `src/handler.py` (+ tests T5).
+8. Lambda handler `handler.py` (+ tests T5).
 9. LangChain interceptor `src/agent_interceptor.py`.
 10. Coverage gate T6 wired into Makefile + pyproject.
 11. OpenTofu module + dev env → `tofu apply` (repeatable deploy).

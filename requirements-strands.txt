@@ -1,0 +1,7 @@
+# Optional runtime extra: the Strands Agents SDK framework adapter.
+#
+# src/agent_interceptor_strands.py + scripts/demo_strands_agent.py + the
+# tests that cover them need strands-agents installed. It is NOT a runtime
+# dependency of the gateway core (which stays framework-free) — install this
+# extra only when you want the Strands adapter.
+strands-agents>=1.64.0
