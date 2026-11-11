@@ -95,6 +95,6 @@ data "aws_iam_policy_document" "gateway_invoke" {
 }
 
 resource "aws_apigatewayv2_api_policy" "gateway" {
-  api_id       = aws_apigatewayv2_api.gateway.id
-  policy       = data.aws_iam_policy_document.gateway_invoke.json
+  api_id = aws_apigatewayv2_api.gateway.id
+  policy = data.aws_iam_policy_document.gateway_invoke.json
 }

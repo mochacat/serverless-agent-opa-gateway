@@ -32,6 +32,15 @@ TESTDATA = Path(__file__).parent / "testdata"
 # ---------------------------------------------------------------------------
 # Harness
 # ---------------------------------------------------------------------------
+def _enrich_principal(tool: str, params: dict) -> dict:
+    """Server-side identity enrichment. The agent contributes no credentials;
+    a fixture's principal_hint is what the *gateway* would resolve from its own
+    identity source (e.g. scoped token)."""
+    principal = {"id": "svc-agent", "authenticated": True}
+    principal.update(params.get("_principal_hint") or {})
+    return principal
+
+
 def _make_app() -> tuple[GatewayApp, InMemoryAuditSink, InMemoryMetricsSink, InMemorySessionStore]:
     audit = InMemoryAuditSink()
     metrics = InMemoryMetricsSink()
@@ -42,16 +51,7 @@ def _make_app() -> tuple[GatewayApp, InMemoryAuditSink, InMemoryMetricsSink, InM
             audit_sink=audit,
             metrics_sink=metrics,
             session_store=store,
-            # Server-side identity enrichment. The agent contributes no
-            # credentials; a fixture's principal_hint is what the *gateway*
-            # would resolve from its own identity source (e.g. scoped token).
-            enrich_principal=lambda tool, params: {
-                "id": "svc-agent",
-                "authenticated": True,
-                **(params.get("_principal_hint") or {}),
-            }
-            if params.get("_principal_hint")
-            else {"id": "svc-agent", "authenticated": True},
+            enrich_principal=_enrich_principal,
         ),
     )
     return app, audit, metrics, store

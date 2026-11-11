@@ -10,12 +10,17 @@
 #
 # CI runs the same targets — "CI green == local green".
 
-.PHONY: lint test-policy test-integration test-all run-gateway demo demo-langchain demo-pydantic demo-strands deploy destroy plan help
+.PHONY: lint test-policy test-integration test-all run-gateway demo demo-langchain demo-pydantic demo-strands deploy destroy plan help precommit
 
 POLICIES_DIR := policies
 # Use the active Python interpreter (developer manages their own venv).
 PY := python3
 RUFF := $(PY) -m ruff
+PRECOMMIT := $(PY) -m pre_commit
+
+# ------------------------------------------------------------ pre-commit ----
+precommit: ## Run all pre-commit hooks (ruff format + tofu fmt)
+	$(PRECOMMIT) run --all-files
 
 # ---------------------------------------------------------------- lint --
 # Single source of truth for static analysis: CI's `lint` job runs exactly
