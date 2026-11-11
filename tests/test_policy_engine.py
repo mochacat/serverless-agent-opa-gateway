@@ -54,11 +54,11 @@ def test_policy_files_load_zero_errors(engine: PolicyEngine) -> None:
 def test_same_input_same_decision_is_deterministic(engine: PolicyEngine) -> None:
     """NFR4: identical input must reproduce an identical decision, repeated."""
     kwargs = dict(
-        industry="fintech",
         tool="execute_transfer",
         args={"amount": 100, "beneficiary": "payroll"},
         context=APPROVED_CTX,
         principal=PRINCIPAL,
+        extra={"industry": "fintech"},
     )
     first, second, third = (
         engine.evaluate(**kwargs),
@@ -80,7 +80,11 @@ def test_engine_is_reused_across_invocations() -> None:
 # ---------------------------------------------------------------------------
 def test_healthcare_read_allowed(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "healthcare", "get_lab_results", {}, {"target": {"leased": False}}, PRINCIPAL
+        "get_lab_results",
+        {},
+        {"target": {"leased": False}},
+        PRINCIPAL,
+        extra={"industry": "healthcare"},
     )
     assert d.allow is True
     # G: these read tools redact PHI identifiers from output.
@@ -89,11 +93,11 @@ def test_healthcare_read_allowed(engine: PolicyEngine) -> None:
 
 def test_healthcare_phi_catchall_scope_denied(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "healthcare",
         "query_phi",
         {"scope": "all"},
         {},
         {"id": "svc", "authenticated": True, "authorized_scopes": "all"},
+        extra={"industry": "healthcare"},
     )
     assert d.allow is False
     assert "PHI query scope" in d.reason
@@ -101,18 +105,20 @@ def test_healthcare_phi_catchall_scope_denied(engine: PolicyEngine) -> None:
 
 def test_healthcare_destructive_requires_approval(engine: PolicyEngine) -> None:
     no_ticket = {**APPROVED_CTX, "approval": {}}
-    d = engine.evaluate("healthcare", "delete_patient_record", {}, no_ticket, PRINCIPAL)
+    d = engine.evaluate(
+        "delete_patient_record", {}, no_ticket, PRINCIPAL, extra={"industry": "healthcare"}
+    )
     assert d.allow is False
     assert "change ticket" in d.reason
 
 
 def test_healthcare_destructive_allowed_with_full_conditions(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "healthcare",
         "bulk_export_records",
         {"dry_run": False},
         APPROVED_CTX,
         PRINCIPAL,
+        extra={"industry": "healthcare"},
     )
     assert d.allow is True
 
@@ -122,11 +128,11 @@ def test_healthcare_destructive_allowed_with_full_conditions(engine: PolicyEngin
 # ---------------------------------------------------------------------------
 def test_fintech_transfer_allowed(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "fintech",
         "execute_transfer",
         {"amount": 100, "beneficiary": "payroll"},
         APPROVED_CTX,
         PRINCIPAL,
+        extra={"industry": "fintech"},
     )
     assert d.allow is True
     assert d.redact is None  # get_* reads redact; execute_transfer does not
@@ -135,11 +141,11 @@ def test_fintech_transfer_allowed(engine: PolicyEngine) -> None:
 
 def test_fintech_transfer_exceeds_amount_cap(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "fintech",
         "execute_transfer",
         {"amount": 999999, "beneficiary": "payroll"},
         APPROVED_CTX,
         PRINCIPAL,
+        extra={"industry": "fintech"},
     )
     assert d.allow is False
     assert "amount exceeds the single-transfer cap" in d.reason  # B
@@ -147,18 +153,20 @@ def test_fintech_transfer_exceeds_amount_cap(engine: PolicyEngine) -> None:
 
 def test_fintech_transfer_beneficiary_not_allowlisted(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "fintech",
         "execute_transfer",
         {"amount": 100, "beneficiary": "unknown_acct"},
         APPROVED_CTX,
         PRINCIPAL,
+        extra={"industry": "fintech"},
     )
     assert d.allow is False
     assert "allowlist" in d.reason  # B
 
 
 def test_fintech_reads_redact_sensitive_fields(engine: PolicyEngine) -> None:
-    d = engine.evaluate("fintech", "get_balance", {}, {"target": {"leased": False}}, PRINCIPAL)
+    d = engine.evaluate(
+        "get_balance", {}, {"target": {"leased": False}}, PRINCIPAL, extra={"industry": "fintech"}
+    )
     assert d.allow is True
     assert d.redact == ("account_number", "card_number", "ssn", "routing_number")
 
@@ -167,12 +175,20 @@ def test_fintech_reads_redact_sensitive_fields(engine: PolicyEngine) -> None:
 # Secops (B hero: hostname/IP target validation)
 # ---------------------------------------------------------------------------
 def test_secops_revoke_allowed_with_real_target(engine: PolicyEngine) -> None:
-    d = engine.evaluate("secops", "revoke_token", {"target": "10.0.0.5"}, APPROVED_CTX, PRINCIPAL)
+    d = engine.evaluate(
+        "revoke_token",
+        {"target": "10.0.0.5"},
+        APPROVED_CTX,
+        PRINCIPAL,
+        extra={"industry": "secops"},
+    )
     assert d.allow is True
 
 
 def test_secops_wildcard_target_denied(engine: PolicyEngine) -> None:
-    d = engine.evaluate("secops", "block_ip", {"target": "*"}, APPROVED_CTX, PRINCIPAL)
+    d = engine.evaluate(
+        "block_ip", {"target": "*"}, APPROVED_CTX, PRINCIPAL, extra={"industry": "secops"}
+    )
     assert d.allow is False
     assert "well-formed hostname" in d.reason  # B
 
@@ -189,7 +205,9 @@ def test_secops_rate_limit_denied_when_over_budget(engine: PolicyEngine) -> None
             {"tool": "revoke_token", "at": 4.0},
         ],
     }
-    d = engine.evaluate("secops", "kill_process", {"target": "db-01"}, over_ctx, PRINCIPAL)
+    d = engine.evaluate(
+        "kill_process", {"target": "db-01"}, over_ctx, PRINCIPAL, extra={"industry": "secops"}
+    )
     assert d.allow is False
     assert "rate limit" in d.reason  # E
 
@@ -199,23 +217,25 @@ def test_secops_rate_limit_denied_when_over_budget(engine: PolicyEngine) -> None
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize("industry", ["", "gaming", "unknown"])
 def test_unknown_or_missing_industry_fails_closed(engine: PolicyEngine, industry: str) -> None:
-    d = engine.evaluate(industry, "get_balance", {}, {}, PRINCIPAL)
+    d = engine.evaluate("get_balance", {}, {}, PRINCIPAL, extra={"industry": industry})
     assert d.allow is False
 
 
 def test_unknown_tool_fails_closed_even_for_known_industry(engine: PolicyEngine) -> None:
-    d = engine.evaluate("healthcare", "run_arbitrary_command", {}, {}, PRINCIPAL)
+    d = engine.evaluate(
+        "run_arbitrary_command", {}, {}, PRINCIPAL, extra={"industry": "healthcare"}
+    )
     assert d.allow is False
     assert "verb-class" in d.reason
 
 
 def test_unauthenticated_principal_denied(engine: PolicyEngine) -> None:
     d = engine.evaluate(
-        "fintech",
         "get_balance",
         {},
         {"target": {"leased": False}},
         {"id": "svc", "authenticated": False},
+        extra={"industry": "fintech"},
     )
     assert d.allow is False
     assert "not authenticated" in d.reason
@@ -246,11 +266,11 @@ def test_concurrent_evaluation_is_deterministic(engine: PolicyEngine) -> None:
         try:
             results.append(
                 engine.evaluate(
-                    "fintech",
                     "execute_transfer",
                     {"amount": 100, "beneficiary": "payroll"},
                     APPROVED_CTX,
                     PRINCIPAL,
+                    extra={"industry": "fintech"},
                 )
             )
         except Exception as exc:  # pragma: no cover - defensive

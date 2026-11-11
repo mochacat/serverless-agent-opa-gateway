@@ -165,12 +165,11 @@ def test_gate_sends_normalized_tool_and_args() -> None:
     assert seen["args"] == {"amount": 50, "beneficiary": "x"}
 
 
-def test_gate_sends_industry_principal_session() -> None:
-    """Construction-time identity/industry/session are forwarded to the gateway."""
+def test_gate_sends_principal_and_session() -> None:
+    """Construction-time identity/session are forwarded to the gateway."""
     stub = _StubClient(Verdict(allowed=True))
     guard = GatewayGuardrail(
         client=stub,
-        industry="healthcare",
         principal_id="svc-billing",
         session_id="sess_abc",
     )
@@ -179,7 +178,6 @@ def test_gate_sends_industry_principal_session() -> None:
     guard._gate(event)
 
     seen = stub.seen[0]
-    assert seen["industry"] == "healthcare"
     assert seen["principal_id"] == "svc-billing"
     assert seen["session_id"] == "sess_abc"
 
@@ -205,7 +203,6 @@ def test_gate_sends_defaults_when_not_provided() -> None:
     guard._gate(event)
 
     seen = stub.seen[0]
-    assert seen["industry"] == ""
     assert seen["principal_id"] is None
     assert seen["session_id"] is None
 

@@ -45,9 +45,8 @@ class Deps:
     the "legit environment" a human ops run would already hold.
     """
 
-    def __init__(self, principal_id: str, industry: str = "fintech") -> None:
+    def __init__(self, principal_id: str) -> None:
         self.principal_id = principal_id
-        self.industry = industry
         # A legit ops run that already inspected the target (trajectory), holds
         # an approved change ticket (F) and a rate budget (E), and targets an
         # isolated, unleased machine (C). The gateway is *stateless*, so this

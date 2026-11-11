@@ -131,9 +131,9 @@ def main(gw_url: str) -> int:
     # --- Scenario 1: Fintech — transfer within/over cap -----------------------
     fintech = GatewayGuardrail(
         client=client,
-        industry="fintech",
         principal_id="ops",
         session_id="demo-session",
+        extra={"industry": "fintech"},
         context={
             "rate_window": {"max": 3},
             "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}],
@@ -156,9 +156,9 @@ def main(gw_url: str) -> int:
     # --- Scenario 2: Healthcare — PHI query with redaction --------------------
     healthcare = GatewayGuardrail(
         client=client,
-        industry="healthcare",
         principal_id="dr_smith",
         session_id="demo-session-2",
+        extra={"industry": "healthcare"},
     )
     run_scenario(
         "Healthcare: PHI query with redaction (B+G)",
@@ -173,9 +173,9 @@ def main(gw_url: str) -> int:
     # --- Scenario 3: SecOps — destructive action without approval -------------
     secops = GatewayGuardrail(
         client=client,
-        industry="secops",
         principal_id="soc_analyst",
         session_id="demo-session-3",
+        extra={"industry": "secops"},
     )
     run_scenario(
         "SecOps: destructive action (DENY - F)",

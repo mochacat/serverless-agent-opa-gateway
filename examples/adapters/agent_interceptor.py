@@ -37,16 +37,15 @@ DENIED_PREFIX = "POLICY DENIED"
 class OPAGuardrailTool(BaseTool):
     """A LangChain tool wrapped so every invocation is gated by the gateway.
 
-    Construct with :meth:`wrap`; pass the real tool, the gateway client, and
-    the industry label the gateway's policy dispatcher expects.
+    Construct with :meth:`wrap`; pass the real tool and the gateway client.
     """
 
     # NOTE: BaseTool is a pydantic model; these are pydantic fields.
     wrapped: BaseTool
     client: GatewayClient
-    industry: str = "fintech"
     principal_id: str | None = None
     session_id: str | None = None
+    extra: dict[str, Any] | None = None
 
     @classmethod
     def wrap(
@@ -54,9 +53,9 @@ class OPAGuardrailTool(BaseTool):
         tool: BaseTool,
         *,
         client: GatewayClient | None = None,
-        industry: str = "fintech",
         principal_id: str | None = None,
         session_id: str | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> OPAGuardrailTool:
         """Wrap ``tool`` so its dispatch is gated by the gateway.
 
@@ -69,9 +68,9 @@ class OPAGuardrailTool(BaseTool):
             args_schema=tool.args_schema,
             wrapped=tool,
             client=client or GatewayClient(),
-            industry=industry,
             principal_id=principal_id,
             session_id=session_id,
+            extra=extra,
         )
 
     # -- interception -------------------------------------------------------
@@ -114,9 +113,9 @@ class OPAGuardrailTool(BaseTool):
         return self.client.check(
             tool=self.name,
             args=args,
-            industry=self.industry,
             principal_id=self.principal_id,
             session_id=self.session_id,
+            extra=self.extra,
         )
 
     def _denied(self, verdict: Verdict) -> str:

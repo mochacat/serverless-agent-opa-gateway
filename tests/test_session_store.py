@@ -81,11 +81,11 @@ def test_store_drives_engine_trajectory_and_rate_features() -> None:
         "approval": {"reference": "CHG-42", "approved": True},
     }
     d = engine.evaluate(
-        "secops",
         "revoke_token",
         {"target": "10.0.0.5"},
         enrich_context_with_session(pre_context, store, "s1"),
         PRINCIPAL,
+        extra={"industry": "secops"},
     )
     assert d.allow is False
     assert "trajectory" in d.reason
@@ -97,7 +97,6 @@ def test_store_drives_engine_trajectory_and_rate_features() -> None:
     # Now the destructive op with a real target is allowed. The store supplies
     # the trajectory (now containing describe + dry_run) => feature D passes.
     d = engine.evaluate(
-        "secops",
         "revoke_token",
         {"target": "10.0.0.5"},
         enrich_context_with_session(
@@ -109,6 +108,7 @@ def test_store_drives_engine_trajectory_and_rate_features() -> None:
             "s1",
         ),
         PRINCIPAL,
+        extra={"industry": "secops"},
     )
     assert d.allow is True
 
@@ -117,7 +117,6 @@ def test_store_drives_engine_trajectory_and_rate_features() -> None:
     store.record_event("s1", "revoke_token")  # 1st destructive in window
     store.record_event("s1", "revoke_token")  # 2nd destructive in window
     d2 = engine.evaluate(
-        "secops",
         "block_ip",
         {"target": "10.0.0.6"},
         enrich_context_with_session(
@@ -129,6 +128,7 @@ def test_store_drives_engine_trajectory_and_rate_features() -> None:
             "s1",
         ),
         PRINCIPAL,
+        extra={"industry": "secops"},
     )
     assert d2.allow is False
     assert "rate limit" in d2.reason

@@ -84,12 +84,11 @@ def test_redacted_output_replaces_result() -> None:
 
 def test_gate_receives_normalized_tool_and_args() -> None:
     stub = _StubClient(Verdict(allowed=True))
-    gw = OPAGuardrailTool.wrap(get_balance, client=stub, industry="fintech")
+    gw = OPAGuardrailTool.wrap(get_balance, client=stub)
     gw.invoke({"account": "acct_9"})
     seen = stub.seen[0]
     assert seen["tool"] == "get_balance"
     assert seen["args"] == {"account": "acct_9"}
-    assert seen["industry"] == "fintech"
 
 
 def test_wrapper_preserves_name_and_schema() -> None:
@@ -108,12 +107,12 @@ def test_client_maps_payload_and_returns_allow(monkeypatch) -> None:
 
     monkeypatch.setattr(GatewayClient, "_post", fake_post)
     client = GatewayClient("http://gw.test")
-    verdict = client.check(tool="get_balance", args={"account": "a"}, industry="fintech")
+    verdict = client.check(tool="get_balance", args={"account": "a"})
 
     assert verdict.allowed is True
     params = captured["payload"]["params"]
     assert captured["payload"]["method"] == "tools/call"
-    assert params == {"tool": "get_balance", "industry": "fintech", "args": {"account": "a"}}
+    assert params == {"tool": "get_balance", "args": {"account": "a"}}
 
 
 def test_client_maps_deny_to_reason(monkeypatch) -> None:
@@ -125,7 +124,7 @@ def test_client_maps_deny_to_reason(monkeypatch) -> None:
         }
 
     monkeypatch.setattr(GatewayClient, "_post", fake_post)
-    verdict = GatewayClient("http://gw.test").check(tool="x", industry="fintech")
+    verdict = GatewayClient("http://gw.test").check(tool="x")
     assert verdict.allowed is False
     assert verdict.reason == "BLOCKED: nope"
 
@@ -133,7 +132,7 @@ def test_client_maps_deny_to_reason(monkeypatch) -> None:
 def test_client_fails_closed_when_gateway_unreachable() -> None:
     # Port 1 is closed → urllib raises URLError → client must deny, not raise.
     client = GatewayClient("http://127.0.0.1:1", timeout=0.5)
-    verdict = client.check(tool="get_balance", industry="fintech")
+    verdict = client.check(tool="get_balance")
     assert verdict.allowed is False
     assert "unreachable" in verdict.reason.lower()
 
@@ -149,7 +148,6 @@ def test_client_include_optional_fields(monkeypatch) -> None:
     GatewayClient("http://gw.test").check(
         tool="query_phi",
         args={"scope": "diagnosis"},
-        industry="healthcare",
         context={"trajectory": []},
         principal_id="clinician",
         output={"patient_mrn": "MRN-1"},

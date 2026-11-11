@@ -22,7 +22,7 @@ Wire it up by passing a ``GatewayGuardrail`` instance in the ``hooks`` list:
     agent = Agent(
         model=model,
         tools=[my_tool],
-        hooks=[GatewayGuardrail(industry="fintech")],
+        hooks=[GatewayGuardrail(extra={"industry": "fintech"})],
     )
 
 ``strands-agents`` is an **optional** extra (``pip install -e .[strands]``),
@@ -60,7 +60,6 @@ class GatewayGuardrail(HookProvider):
 
     Args:
         client: The :class:`GatewayClient` (defaults to ``127.0.0.1:8080``).
-        industry: Industry label the gateway's policy dispatcher expects.
         principal_id: Identity passed as ``principal_id`` to the gateway. The
             agent itself holds no credentials — identity is enriched at the
             gateway (DESIGN §4.1a).
@@ -68,22 +67,24 @@ class GatewayGuardrail(HookProvider):
             D/E).
         context: Optional cross-call ``input.context`` (e.g. an approved change
             ticket for feature F, an isolated target for feature C).
+        extra: Optional policy-specific fields to pass through to the Rego
+            input verbatim (e.g. an example dispatch key).
     """
 
     def __init__(
         self,
         *,
         client: GatewayClient | None = None,
-        industry: str = "",
         principal_id: str | None = None,
         session_id: str | None = None,
         context: Mapping[str, Any] | None = None,
+        extra: Mapping[str, Any] | None = None,
     ) -> None:
         self._client = client or GatewayClient()
-        self._industry = industry
         self._principal_id = principal_id
         self._session_id = session_id
         self._context = dict(context) if context is not None else None
+        self._extra = dict(extra) if extra is not None else None
         # Stash verdicts between BeforeToolCallEvent and AfterToolCallEvent,
         # keyed by toolUseId (stable across the paired events for one tool call).
         self._verdicts: dict[str, Verdict] = {}
@@ -112,10 +113,10 @@ class GatewayGuardrail(HookProvider):
         verdict = self._client.check(
             tool=tool_name,
             args=tool_args if isinstance(tool_args, dict) else {"input": tool_args},
-            industry=self._industry,
             principal_id=self._principal_id,
             session_id=self._session_id,
             context=self._context,
+            extra=self._extra,
         )
 
         tid = event.tool_use["toolUseId"]

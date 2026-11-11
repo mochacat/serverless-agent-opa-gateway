@@ -31,7 +31,7 @@ every agent an org runs (the gateway's "one control plane, agent-agnostic"
 story, DESIGN §4.1a):
 
     from examples.adapters.agent_interceptor_pydantic import build_gateway_hooks
-    agent = Agent(model, capabilities=[build_gateway_hooks(industry="fintech")])
+    agent = Agent(model, capabilities=[build_gateway_hooks()])
 
 ``pydantic-ai`` is an **optional** extra (``pip install -e .[pydantic]``),
 imported lazily; the gateway core stays framework-free. Import this module only
@@ -62,11 +62,6 @@ _verdict_stash: contextvars.ContextVar[Verdict | None] = contextvars.ContextVar(
 )
 
 
-def _industry_of(deps: Any, default: str) -> str:
-    from_deps = getattr(deps, "industry", None) if deps is not None else None
-    return str(from_deps or default)
-
-
 def _field_of(deps: Any, name: str, default: str | None) -> str | None:
     value = getattr(deps, name, None) if deps is not None else None
     return default if value is None else value
@@ -80,17 +75,15 @@ def _context_of(deps: Any, default: Mapping[str, Any] | None) -> Mapping[str, An
 def build_gateway_hooks(
     *,
     client: GatewayClient | None = None,
-    industry: str = "",
     principal_id: str | None = None,
     session_id: str | None = None,
     context: Mapping[str, Any] | None = None,
+    extra: Mapping[str, Any] | None = None,
 ) -> Hooks:
     """Build a :class:`Hooks` capability that gates every tool dispatch.
 
     Args:
         client: The :class:`GatewayClient` (defaults to ``127.0.0.1:8080``).
-        industry: Industry label the gateway's policy dispatcher expects. A
-            ``deps.industry`` attribute on the run takes precedence.
         principal_id: Identity passed as ``principal_id`` to the gateway. A
             ``deps.principal_id`` attribute on the run takes precedence (the
             agent itself holds no credentials — identity is enriched at the
@@ -100,6 +93,8 @@ def build_gateway_hooks(
         context: Optional cross-call ``input.context`` (e.g. an approved change
             ticket for feature F, an isolated target for feature C). A
             ``deps.context`` attribute on the run takes precedence.
+        extra: Optional policy-specific fields to pass through to the Rego
+            input verbatim (e.g. an example dispatch key).
     """
     client = client or GatewayClient()
 
@@ -116,10 +111,10 @@ def build_gateway_hooks(
         verdict = client.check(
             tool=call.tool_name,
             args=args,
-            industry=_industry_of(ctx.deps, industry),
             principal_id=_field_of(ctx.deps, "principal_id", principal_id),
             session_id=_field_of(ctx.deps, "session_id", session_id),
             context=_context_of(ctx.deps, context),
+            extra=extra,
         )
         _verdict_stash.set(verdict)
         if not verdict.allowed:

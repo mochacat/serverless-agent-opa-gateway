@@ -61,24 +61,27 @@ class GatewayClient:
         *,
         tool: str,
         args: Mapping[str, Any] | None = None,
-        industry: str = "",
         context: Mapping[str, Any] | None = None,
         principal_id: str | None = None,
         output: Any = None,
         session_id: str | None = None,
+        extra: Mapping[str, Any] | None = None,
     ) -> Verdict:
         """Send one normalized ``tools/call`` and return the :class:`Verdict`.
 
         ``tool`` + ``args`` are the normalized schema the frameworks map onto;
         everything else is optional gateway enrichment (identity, cross-call
-        context, G-redaction target). Never raises on a denial — check
+        context, G-redaction target). ``extra`` carries any policy-specific
+        fields (e.g. example dispatch keys) the gateway will pass through to
+        the Rego input verbatim. Never raises on a denial — check
         ``.allowed``.
         """
         params: dict[str, Any] = {
             "tool": tool,
-            "industry": industry,
             "args": dict(args or {}),
         }
+        if extra:
+            params.update(extra)
         if context is not None:
             params["context"] = dict(context)
         if principal_id is not None:

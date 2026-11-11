@@ -113,11 +113,6 @@ def gateway_client_timeout() -> float:
 # ---------------------------------------------------------------------------
 
 
-def agent_industry() -> str:
-    """Default industry label for framework interceptors."""
-    return str_env("AGENT_INDUSTRY", "fintech")
-
-
 def agent_principal_id() -> str:
     """Default principal_id for framework interceptors."""
     return str_env("AGENT_PRINCIPAL_ID", "ops")
@@ -139,6 +134,5 @@ __all__ = [
     "get_config_dict",
     "gateway_url",
     "gateway_client_timeout",
-    "agent_industry",
     "agent_principal_id",
 ]

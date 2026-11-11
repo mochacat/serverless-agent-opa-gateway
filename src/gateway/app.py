@@ -139,7 +139,6 @@ class GatewayApp:
 
         tool = params["tool"]
         args = params.get("args") or {}
-        industry = params.get("industry") or ""
         output = params.get("output")
         session_id = params.get("session_id")
 
@@ -152,8 +151,13 @@ class GatewayApp:
         )
 
         # 3. Evaluate the real policy in-process.
+        # Any extra params the gateway doesn't understand (e.g. example-only
+        # fields like "industry") are passed through to the Rego input so the
+        # policy can use them without the gateway knowing their meaning.
+        known_keys = {"tool", "args", "output", "session_id", "context", "principal"}
+        extra = {k: v for k, v in params.items() if k not in known_keys}
         start = time.perf_counter()
-        decision = self._engine.evaluate(industry, tool, args, context, principal)
+        decision = self._engine.evaluate(tool, args, context, principal, extra=extra or None)
         self._config.metrics_sink.incr("decisions", tool=tool)
         self._config.metrics_sink.gauge(
             "policy_eval_ms", (time.perf_counter() - start) * 1000.0, tool=tool

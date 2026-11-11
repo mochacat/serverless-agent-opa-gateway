@@ -46,7 +46,9 @@ def execute_transfer(amount: int, beneficiary: str) -> str:
 def _gated(tools, client: GatewayClient) -> dict[str, OPAGuardrailTool]:
     """Wrap every tool so the agent cannot bypass the gateway."""
     return {
-        t.name: OPAGuardrailTool.wrap(t, client=client, industry="fintech", principal_id="ops")
+        t.name: OPAGuardrailTool.wrap(
+            t, client=client, principal_id="ops", extra={"industry": "fintech"}
+        )
         for t in tools
     }
 

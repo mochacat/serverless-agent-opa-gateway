@@ -3,8 +3,8 @@
 
 Loads policies through the **real PolicyEngine** — the exact same
 ``src.engine.policy_engine`` module the Lambda imports at cold start —
-and evaluates a fixture decision per industry. Asserts the deployed
-evaluation path parses the Rego and returns a well-formed decision.
+and evaluates a fixture decision per example policy surface. Asserts the
+deployed evaluation path parses the Rego and returns a well-formed decision.
 
 This is a SMOKE check (proves the runtime loads + evaluates), not the full
 semantic test suite — `opa test policies/` (T1) owns semantic correctness.
@@ -42,20 +42,30 @@ def main() -> int:
 
     P = {"id": "svc", "authenticated": True}
 
-    # Baseline per-industry decisions (benign allow + a blast-radius deny).
+    def with_industry(name: str) -> dict:
+        """Example-only dispatch key passed via ``extra`` (see policy.rego)."""
+        return {"industry": name}
+
+    # Baseline per-example decisions (benign allow + a blast-radius deny).
     check(
         "healthcare/read-allowed",
-        engine.evaluate("healthcare", "get_lab_results", {}, {"target": {"leased": False}}, P),
+        engine.evaluate(
+            "get_lab_results",
+            {},
+            {"target": {"leased": False}},
+            P,
+            extra=with_industry("healthcare"),
+        ),
         True,
     )
     check(
         "healthcare/phi-catchall-denied",
         engine.evaluate(
-            "healthcare",
             "query_phi",
             {"scope": "all"},
             {},
             {"id": "svc", "authenticated": True, "authorized_scopes": "all"},
+            extra=with_industry("healthcare"),
         ),
         False,
     )
@@ -69,14 +79,17 @@ def main() -> int:
     check(
         "fintech/transfer-allowed",
         engine.evaluate(
-            "fintech", "execute_transfer", {"amount": 100, "beneficiary": "payroll"}, approved, P
+            "execute_transfer",
+            {"amount": 100, "beneficiary": "payroll"},
+            approved,
+            P,
+            extra=with_industry("fintech"),
         ),
         True,
     )
     check(
         "fintech/transfer-no-ticket-denied",
         engine.evaluate(
-            "fintech",
             "execute_transfer",
             {"amount": 100, "beneficiary": "payroll"},
             {
@@ -85,30 +98,35 @@ def main() -> int:
                 "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}],
             },
             P,
+            extra=with_industry("fintech"),
         ),
         False,
     )
 
     check(
         "secops/revoke-allowed",
-        engine.evaluate("secops", "revoke_token", {"target": "10.0.0.5"}, approved, P),
+        engine.evaluate(
+            "revoke_token", {"target": "10.0.0.5"}, approved, P, extra=with_industry("secops")
+        ),
         True,
     )
     check(
         "secops/wildcard-target-denied",
-        engine.evaluate("secops", "revoke_token", {"target": "*"}, approved, P),
+        engine.evaluate(
+            "revoke_token", {"target": "*"}, approved, P, extra=with_industry("secops")
+        ),
         False,
     )
 
-    # Fail-closed: unknown / empty industry must NOT produce allow=true.
+    # Fail-closed: unknown / empty example key must NOT produce allow=true.
     check(
         "failclosed/unknown-industry",
-        engine.evaluate("gaming", "get_balance", {}, {}, P),
+        engine.evaluate("get_balance", {}, {}, P, extra={"industry": "gaming"}),
         False,
     )
     check(
         "failclosed/empty-industry",
-        engine.evaluate("", "get_balance", {}, {}, P),
+        engine.evaluate("get_balance", {}, {}, P, extra={"industry": ""}),
         False,
     )
 

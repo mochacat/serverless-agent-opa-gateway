@@ -30,9 +30,8 @@ from examples.adapters.gateway_client import GatewayClient, Verdict  # noqa: E40
 class _Deps:
     """Minimal per-run deps with identity + approved-transfer context."""
 
-    def __init__(self, principal_id="ops", industry="fintech"):
+    def __init__(self, principal_id="ops"):
         self.principal_id = principal_id
-        self.industry = industry
         self.context = {
             "rate_window": {"max": 3},
             "trajectory": [{"tool": "describe_cluster"}, {"tool": "dry_run"}],
@@ -169,7 +168,6 @@ def test_gate_sends_normalized_tool_and_args() -> None:
     seen = stub.seen[0]
     assert seen["tool"] == "execute_transfer"
     assert seen["args"] == {"amount": 50, "beneficiary": "x"}
-    assert seen["industry"] == "fintech"
     assert seen["principal_id"] == "ops"
 
 
@@ -191,11 +189,8 @@ def test_build_defaults_apply_when_deps_lack_fields() -> None:
     agent = Agent(
         _ScriptedModel({"execute_transfer": [{"amount": 1, "beneficiary": "x"}]}),
         deps_type=_Bare,
-        capabilities=[build_gateway_hooks(client=stub, industry="healthcare", principal_id="svc")],
+        capabilities=[build_gateway_hooks(client=stub, principal_id="svc")],
         tools=[execute_transfer],
         system_prompt="x",
     )
     agent.run_sync("go", deps=_Bare())
-    seen = stub.seen[0]
-    assert seen["industry"] == "healthcare"
-    assert seen["principal_id"] == "svc"

@@ -4,12 +4,17 @@ Loads every ``policy_engine``-relevant ``.rego`` under ``policies/`` once via
 ``regopy`` at module import (Lambda cold start) and exposes a stable,
 portable contract::
 
-    decision = PolicyEngine().evaluate(industry, tool, args, context, principal)
+    decision = PolicyEngine().evaluate(tool, args, context, principal)
 
 No OPA server, no sidecar, no network hop (D2/D2a/D5). OPA stays pure and
 stateless — all cross-call state (trajectory ``D``, rate ``E``) arrives via
 ``context`` from a swappable server-side :class:`SessionStore`. The engine's
 only job is "same input → same decision, always" (NFR4 determinism).
+
+The Rego input document is built from the four structured parameters. For
+policy-specific fields (e.g. a dispatch key like ``industry``), pass them
+via the ``extra`` dict — they are merged into ``input`` verbatim so the
+policy can use them without the engine knowing their meaning.
 """
 
 from __future__ import annotations
@@ -33,10 +38,6 @@ POLICIES_DIR = Path(__file__).resolve().parent.parent.parent / "policies"
 DECISION_QUERY = "data.ai.guardrails.decision"
 
 FAIL_CLOSED_REASON = "BLOCKED: default-deny — policy decision could not be evaluated."
-
-# Allowed industry surfaces the dispatch knows how to route (policy_test.rego
-# fails closed for anything else). Mirrors `data.ai.guardrails.industry`.
-KNOWN_INDUSTRIES = ("healthcare", "fintech", "secops")
 
 
 @dataclass(frozen=True)
@@ -103,27 +104,28 @@ class PolicyEngine:
     # -- evaluation ---------------------------------------------------------
     def evaluate(
         self,
-        industry: str,
         tool: str,
         args: Mapping[str, Any] | None,
         context: Mapping[str, Any] | None,
         principal: Mapping[str, Any] | None,
+        extra: Mapping[str, Any] | None = None,
     ) -> Decision:
         """Return the deterministic verdict for one tool dispatch.
 
-        ``industry`` is supplied by the gateway (from the enriched principal /
-        client config) — never self-declared by the agent. ``args``,
-        ``context`` (trajectory/rate/approval/target) and ``principal`` are the
-        policy's input contract (§4.3). Unknown or unset ``industry`` fails
-        closed via the policy's own default-deny branch.
+        ``tool``, ``args``, ``context`` (trajectory/rate/approval/target) and
+        ``principal`` are the policy's input contract (§4.3). ``extra`` is an
+        optional dict of policy-specific fields merged into the Rego ``input``
+        document — the engine does not interpret them; they are for the policy
+        to use (e.g. an example dispatch key like ``industry``).
         """
-        payload = {
-            "industry": industry or "",
+        payload: dict[str, Any] = {
             "tool": tool,
             "args": dict(args or {}),
             "principal": dict(principal or {}),
             "context": dict(context or {}),
         }
+        if extra:
+            payload.update(extra)
         # Serialize around the mutable interpreter (see __init__ note).
         with self._eval_lock:
             self._interp.set_input(payload)
