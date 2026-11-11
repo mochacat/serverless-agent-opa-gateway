@@ -2,7 +2,10 @@
 
 > **Declarative Security & Infrastructure Policy Engine for AI Agent Tool Execution**
 
+
 A serverless, low-latency control plane that enforces deterministic security boundaries on autonomous AI agent execution loops. By evaluating Open Policy Agent (OPA) Rego policies **in-process** via the embedded `regopy` interpreter inside a Python AWS Lambda runtime, this system dynamically blocks hallucinated or out-of-bounds agent tool executions based on real-time infrastructure state and telemetry.
+
+![Agentic OPA Guardrails architecture](docs/images/gateway-opa.png)
 
 ## Quickstart
 
@@ -101,11 +104,13 @@ The gateway core (`src/gateway/`, `src/engine/`) has **zero framework dependenci
 │                                                           │ │
 │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
 │  │ Audit Sink   │  │ Metrics Sink │  │ Session Store   │  │
-│  │ (stdout→CW)  │  │ (in-memory,  │  │ (trajectory,    │  │
+│  ��� (stdout→CW)  │  │ (in-memory,  │  │ (trajectory,    │  │
 │  └──────────────┘  │  OTLP seam)  │  │ rate window)    │  │
 │                    └──────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Production auth flow
 
 ### Production auth flow
 

@@ -26,6 +26,9 @@ module "agent_gateway" {
   reserved_concurrency = var.reserved_concurrency
   log_retention_days   = var.log_retention_days
 
+  # Policy version (git-derived at deploy time; falls back to "dev")
+  policy_version = var.policy_version
+
   # Security / Compliance
   agent_role_arn        = var.agent_role_arn
   kms_key_arn           = var.kms_key_arn

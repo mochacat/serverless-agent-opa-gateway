@@ -223,4 +223,4 @@ def test_denied_call_is_still_audited_with_reason() -> None:
     record = audit.records[0]
     assert record["decision"]["allow"] is False
     assert "change ticket" in record["reason"]
-    assert record["policy_version"] == "v1"
+    assert record["policy_version"] == "dev"

@@ -22,6 +22,10 @@ compliance_frameworks = []
 # CORS — empty denies all cross-origin (agents call server-to-server).
 allowed_origins = []
 
+# Policy version — normally set automatically by `make deploy` from `git describe
+# --tags --always --dirty`. Override here for manual/special deployments.
+# policy_version = "dev"
+
 tags = {
   Owner = "platform-team"
 }

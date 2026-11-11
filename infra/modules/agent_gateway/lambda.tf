@@ -47,7 +47,7 @@ resource "aws_lambda_function" "gateway" {
   environment {
     variables = {
       # Policy version surfaced in audit records (git-versioned; NFR7).
-      POLICY_VERSION = "v1"
+      POLICY_VERSION = local.policy_version
       # Audit sink target + observability toggles are read by the handler.
       AUDIT_SINK       = "cloudwatch"
       LOG_FORMAT       = "json" # structured JSON lines -> CloudWatch

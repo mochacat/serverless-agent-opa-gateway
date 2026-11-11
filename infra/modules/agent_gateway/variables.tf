@@ -145,6 +145,17 @@ variable "enable_api_access_logs" {
   default     = true
 }
 
+variable "policy_version" {
+  description = <<-EOT
+    Policy version stamped into every audit record — enables traceability from
+    an audit log entry back to the exact git revision of the policies that were
+    loaded. Defaults to "dev" when null (local/CI) so the local workflow never
+    incorrectly stamps "v1" on records from unreleased changes.
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Additional tags merged over the module's mandatory tags (cost allocation + compliance)."
   type        = map(string)

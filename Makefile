@@ -108,6 +108,9 @@ demo-strands: ## One-shot demo: Strands Agents SDK gated by the gateway
 # terraform.tfvars. See docs/deployment.md for the full path + smoke test.
 BUILD_DIR := build/lambda
 ENV_DIR := infra/envs/dev
+# Policy version stamped into audit records — git describe (tag + commit + dirty
+# flag). Falls back to "dev" if git is unavailable (CI without a checkout).
+POLICY_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
 deploy: ## Build Lambda zip and deploy to your AWS account (tofu apply) — T6.3
 	@echo "→ building Lambda package (code + policies + runtime deps → $(BUILD_DIR))"
@@ -119,7 +122,8 @@ deploy: ## Build Lambda zip and deploy to your AWS account (tofu apply) — T6.3
 	  --only-binary=:all: \
 	  --no-compile --quiet
 	@echo "→ deploying $(ENV_DIR) to YOUR AWS account (manual, no CI)"
-	cd $(ENV_DIR) && tofu init -input=false && tofu apply -auto-approve
+	@echo "   policy version: $(POLICY_VERSION)"
+	cd $(ENV_DIR) && tofu init -input=false && tofu apply -auto-approve -var="policy_version=$(POLICY_VERSION)"
 	@echo "→ smoke-test the deployed gateway:"
 	cd $(ENV_DIR) && tofu output -raw tools_call_url | sed 's/^/   POST /'
 	@echo "   curl -s -X POST \"$$(cd $(ENV_DIR) && tofu output -raw tools_call_url)\" \\"

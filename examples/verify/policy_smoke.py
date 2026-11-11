@@ -117,7 +117,7 @@ def main() -> int:
         for f in failures:
             print(f"  - {f}")
         return 1
-    print(f"\nSMOKE PASS: all decisions correct via real PolicyEngine.")
+    print("\nSMOKE PASS: all decisions correct via real PolicyEngine.")
     return 0
 
 

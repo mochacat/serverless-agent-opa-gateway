@@ -50,7 +50,10 @@ CODE_TOOL_DENIED = -32000
 _TRACEPARENT_RE = re.compile(r"^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$")
 
 # Fallback policy version when none is configured (git-versioned, NFR7).
-DEFAULT_POLICY_VERSION = "v1"
+# The Lambda handler (handler.py) overrides this via src.config.policy_version()
+# which reads the POLICY_VERSION env var set by lambda.tf, so the default
+# below is only used in local demo / test environments.
+DEFAULT_POLICY_VERSION = "dev"
 
 
 @dataclass

@@ -63,6 +63,12 @@ variable "allowed_origins" {
   default     = []
 }
 
+variable "policy_version" {
+  description = "Policy version stamped into audit records (git SHA at deploy time)."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Extra tags merged over the module's mandatory tags."
   type        = map(string)

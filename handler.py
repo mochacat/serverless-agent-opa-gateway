@@ -18,6 +18,7 @@ import json
 from typing import Any
 
 from src.audit.audit import StdoutAuditSink
+from src.config import policy_version
 from src.gateway.app import GatewayApp, GatewayConfig
 from src.metrics.metrics import InMemoryMetricsSink
 
@@ -50,8 +51,15 @@ def _get_app() -> GatewayApp:
         # CloudWatch Logs collects (the OpenTofu module ships a log group with
         # retention). Metrics default to in-memory; an OTLP exporter is a
         # drop-in MetricsSink configured per environment.
+        #
+        # Env-var-forward: the Lambda's environment block (lambda.tf) sets
+        # POLICY_VERSION, AUDIT_SINK, LOG_FORMAT, LOG_LEVEL, and
+        # COMPLIANCE_SCOPE.  This module reads them at cold start via
+        # src.config so deploy-time configuration is effective instead of
+        # invisible.
         _app = GatewayApp(
             config=GatewayConfig(
+                policy_version=policy_version(),
                 audit_sink=StdoutAuditSink(),
                 metrics_sink=InMemoryMetricsSink(),
             )
