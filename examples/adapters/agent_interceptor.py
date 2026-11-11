@@ -27,7 +27,7 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
-from src.agent_gateway_client import GatewayClient, Verdict
+from examples.adapters.gateway_client import GatewayClient, Verdict
 
 # Prefix that marks a policy denial in the string/ ToolMessage returned to the
 # model, so it is unambiguous this was the gateway, not the tool.

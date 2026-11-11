@@ -23,8 +23,8 @@ from pydantic_ai import Agent  # noqa: E402
 from pydantic_ai.models.test import TestModel  # noqa: E402
 from pydantic_ai.tools import ToolDefinition  # noqa: E402
 
-from src.agent_gateway_client import GatewayClient, Verdict  # noqa: E402
-from src.agent_interceptor_pydantic import build_gateway_hooks  # noqa: E402
+from examples.adapters.agent_interceptor_pydantic import build_gateway_hooks  # noqa: E402
+from examples.adapters.gateway_client import GatewayClient, Verdict  # noqa: E402
 
 
 class _Deps:

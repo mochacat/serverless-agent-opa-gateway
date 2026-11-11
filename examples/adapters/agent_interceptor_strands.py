@@ -18,7 +18,7 @@ guaranteed stable across the paired events for one tool invocation.
 
 Wire it up by passing a ``GatewayGuardrail`` instance in the ``hooks`` list:
 
-    from src.agent_interceptor_strands import GatewayGuardrail
+    from examples.adapters.agent_interceptor_strands import GatewayGuardrail
     agent = Agent(
         model=model,
         tools=[my_tool],
@@ -44,7 +44,7 @@ from strands.hooks import (
 )
 from strands.types.tools import ToolResult
 
-from src.agent_gateway_client import GatewayClient, Verdict
+from examples.adapters.gateway_client import GatewayClient, Verdict
 
 # Prefix that marks a policy denial in the cancel_tool message sent back to the
 # agent loop, so it is unambiguous this was the gateway, not a tool error.

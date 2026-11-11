@@ -20,8 +20,8 @@ langchain_core = pytest.importorskip("langchain_core")
 
 from langchain_core.tools import tool  # noqa: E402
 
-from src.agent_gateway_client import GatewayClient, Verdict  # noqa: E402
-from src.agent_interceptor import DENIED_PREFIX, OPAGuardrailTool  # noqa: E402
+from examples.adapters.agent_interceptor import DENIED_PREFIX, OPAGuardrailTool  # noqa: E402
+from examples.adapters.gateway_client import GatewayClient, Verdict  # noqa: E402
 
 
 @tool

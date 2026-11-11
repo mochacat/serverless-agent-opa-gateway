@@ -31,9 +31,9 @@ addopts = "-ra"
 # Test tiers T2-T6 run with zero AWS (injected fakes). See REQUIREMENTS.md §5.1.
 
 [tool.coverage.run]
-source = ["src", "."]
+source = ["src", "examples/adapters", "."]
 omit = ["src/__init__.py", "tests/*", "scripts/*", "build/*", "infra/*"]
-# NOTE: src/agent_interceptor*.py + src/agent_gateway_client.py are covered by
+# NOTE: examples/adapters/* (interceptors + gateway client) are covered by
 # tests/test_agent_interceptor*.py, which need their respective optional extras
 # (langchain-core, pydantic-ai, strands-agents). requirements-dev.txt pulls all
 # of them so CI and local dev always run those tests; running pytest without the

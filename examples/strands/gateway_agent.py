@@ -35,8 +35,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent
 from strands.types.tools import ToolResult, ToolUse
 
-from src.agent_gateway_client import GatewayClient
-from src.agent_interceptor_strands import GatewayGuardrail
+from examples.adapters.agent_interceptor_strands import GatewayGuardrail
+from examples.adapters.gateway_client import GatewayClient
 
 
 def make_tool_use(name: str, tid: str, input: dict) -> ToolUse:

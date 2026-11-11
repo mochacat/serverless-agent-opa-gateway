@@ -33,8 +33,8 @@ from pydantic_ai import Agent
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import ToolDefinition
 
-from src.agent_gateway_client import GatewayClient
-from src.agent_interceptor_pydantic import DENIED_PREFIX, build_gateway_hooks
+from examples.adapters.agent_interceptor_pydantic import DENIED_PREFIX, build_gateway_hooks
+from examples.adapters.gateway_client import GatewayClient
 
 
 class Deps:

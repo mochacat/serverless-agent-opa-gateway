@@ -26,8 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from langchain_core.tools import tool
 
-from src.agent_gateway_client import GatewayClient
-from src.agent_interceptor import DENIED_PREFIX, OPAGuardrailTool
+from examples.adapters.agent_interceptor import DENIED_PREFIX, OPAGuardrailTool
+from examples.adapters.gateway_client import GatewayClient
 
 
 # --- real LangChain tools (the agent's capabilities) -----------------------

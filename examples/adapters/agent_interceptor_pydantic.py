@@ -30,7 +30,7 @@ Wire it up as a capability — the same object is a reusable bundle you attach t
 every agent an org runs (the gateway's "one control plane, agent-agnostic"
 story, DESIGN §4.1a):
 
-    from src.agent_interceptor_pydantic import build_gateway_hooks
+    from examples.adapters.agent_interceptor_pydantic import build_gateway_hooks
     agent = Agent(model, capabilities=[build_gateway_hooks(industry="fintech")])
 
 ``pydantic-ai`` is an **optional** extra (``pip install -e .[pydantic]``),
@@ -51,7 +51,7 @@ from pydantic_ai.exceptions import ModelRetry
 from pydantic_ai.messages import ToolCallPart
 from pydantic_ai.tools import ToolDefinition
 
-from src.agent_gateway_client import GatewayClient, Verdict
+from examples.adapters.gateway_client import GatewayClient, Verdict
 
 # Prefix that marks a policy denial in the ModelRetry reason sent back to the
 # model, so it is unambiguous this was the gateway, not a thrown tool error.

@@ -31,8 +31,11 @@ pytest.importorskip("strands")
 from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent  # noqa: E402
 from strands.types.tools import ToolResult, ToolUse  # noqa: E402
 
-from src.agent_gateway_client import GatewayClient, Verdict  # noqa: E402
-from src.agent_interceptor_strands import DENIED_PREFIX, GatewayGuardrail  # noqa: E402
+from examples.adapters.agent_interceptor_strands import (  # noqa: E402
+    DENIED_PREFIX,
+    GatewayGuardrail,
+)
+from examples.adapters.gateway_client import GatewayClient, Verdict  # noqa: E402
 
 
 class _StubAgent:
