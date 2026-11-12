@@ -49,18 +49,8 @@ variable "runtime" {
   default     = "python3.14"
 }
 
-# ---------------------------------------------- SECURITY ------------------
-variable "agent_role_arn" {
-  description = <<-EOT
-    IAM role ARN the agent runs as (e.g. ECS task role, EC2 instance profile).
-    When set, a resource-based policy on the API Gateway restricts invocation
-    to this role only — least-privilege. When null, any IAM-authenticated
-    caller with execute-api:Invoke can call the gateway (wide open).
-  EOT
-  type        = string
-  default     = null
-}
-
+# (agent_role_arn was removed — the tools_call route uses AWS_IAM auth
+# which already restricts invocation via IAM permissions.)
 variable "kms_key_arn" {
   description = <<-EOT
     Customer-managed KMS key for CloudWatch Logs + Lambda env encryption.

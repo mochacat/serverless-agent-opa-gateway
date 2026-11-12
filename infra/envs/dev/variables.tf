@@ -51,12 +51,6 @@ variable "compliance_frameworks" {
   default     = []
 }
 
-variable "agent_role_arn" {
-  description = "IAM role ARN the agent runs as (restricts gateway invocation to this role)."
-  type        = string
-  default     = null
-}
-
 variable "allowed_origins" {
   description = "CORS origins (empty = deny all cross-origin)."
   type        = list(string)

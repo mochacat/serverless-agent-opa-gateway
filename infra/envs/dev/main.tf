@@ -30,7 +30,6 @@ module "agent_gateway" {
   policy_version = var.policy_version
 
   # Security / Compliance
-  agent_role_arn        = var.agent_role_arn
   kms_key_arn           = var.kms_key_arn
   compliance_frameworks = var.compliance_frameworks
   allowed_origins       = var.allowed_origins

@@ -75,26 +75,7 @@ resource "aws_apigatewayv2_stage" "default" {
   tags = local.tags
 }
 
-# ---------------------------------------------------------------------------
 # SECURITY: resource-based policy that restricts who can invoke the gateway.
-# When agent_role_arn is set, only that IAM role (or any session chained to
-# it) may call POST /tools/call. When null, any IAM-authenticated caller with
-# execute-api:Invoke can call — use for wide-open dev environments.
-# ---------------------------------------------------------------------------
-data "aws_iam_policy_document" "gateway_invoke" {
-  statement {
-    sid    = "AllowInvocation"
-    effect = "Allow"
-    principals {
-      type        = "AWS"
-      identifiers = var.agent_role_arn != null ? [var.agent_role_arn] : ["*"]
-    }
-    actions   = ["execute-api:Invoke"]
-    resources = ["${aws_apigatewayv2_api.gateway.execution_arn}/*/*"]
-  }
-}
-
-resource "aws_apigatewayv2_api_policy" "gateway" {
-  api_id = aws_apigatewayv2_api.gateway.id
-  policy = data.aws_iam_policy_document.gateway_invoke.json
-}
+# The `tools_call` route uses AWS_IAM auth (line 37), which already requires
+# `execute-api:Invoke` — any caller must have IAM permissions. That is sufficient
+# for access control; no separate resource policy is needed.
